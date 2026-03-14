@@ -25,12 +25,12 @@ router.get('/:trackName', (req: Request, res: Response) => {
     entries: entries.map((e, i) => ({
       rank: i + 1,
       username: e.username,
-      displayName: e.display_name,
+      displayName: e.username,
       lapTime: e.lap_time,
       wasClean: !!e.was_clean,
       userId: e.user_id,
     })),
-    worldRecord: wr ? { lapTime: wr.lap_time, username: wr.username, displayName: wr.display_name } : null,
+    worldRecord: wr ? { lapTime: wr.lap_time, username: wr.username, displayName: wr.username } : null,
   });
 });
 
@@ -69,7 +69,7 @@ router.post('/submit', (req: Request, res: Response) => {
     isPersonalBest,
     isWorldRecord,
     rank: rank?.rank || 1,
-    worldRecord: wr ? { lapTime: wr.lap_time, username: wr.username, displayName: wr.display_name } : null,
+    worldRecord: wr ? { lapTime: wr.lap_time, username: wr.username, displayName: wr.username } : null,
   });
 });
 
@@ -77,7 +77,7 @@ router.post('/submit', (req: Request, res: Response) => {
 router.get('/:trackName/wr', (req: Request, res: Response) => {
   const wr = getWorldRecord.get(req.params.trackName) as any;
   res.json({
-    worldRecord: wr ? { lapTime: wr.lap_time, username: wr.username, displayName: wr.display_name } : null,
+    worldRecord: wr ? { lapTime: wr.lap_time, username: wr.username, displayName: wr.username } : null,
   });
 });
 

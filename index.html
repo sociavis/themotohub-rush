@@ -168,9 +168,11 @@
   .ws-tab.active{opacity:1;background:rgba(255,255,255,0.06)}
   .ws-form{display:flex;flex-direction:column;gap:10px}
   .ws-form.ws-hidden{display:none}
-  .ws-form input{width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:0.05em;color:rgba(255,255,255,0.9);outline:none;transition:border-color 0.3s}
-  .ws-form input:focus{border-color:var(--ws-primary,rgba(255,100,0,0.4))}
+  .ws-form input,.ws-form select{width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:0.05em;color:rgba(255,255,255,0.9);outline:none;transition:border-color 0.3s}
+  .ws-form input:focus,.ws-form select:focus{border-color:var(--ws-primary,rgba(255,100,0,0.4))}
   .ws-form input::placeholder{color:rgba(255,255,255,0.25);text-transform:uppercase;font-size:10px;letter-spacing:0.12em}
+  .ws-form select{cursor:pointer;-webkit-appearance:none;appearance:none}
+  .ws-form select option{background:#1a1a2e;color:rgba(255,255,255,0.9)}
   .ws-btn{width:100%;padding:12px;border:1px solid var(--ws-primary,#ff6400);border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;background:transparent;color:var(--ws-primary,#ff6400)}
   .ws-btn:hover{background:rgba(255,100,0,0.1)}
   .ws-race-btn{font-size:14px;padding:14px;margin-top:8px;letter-spacing:0.3em}

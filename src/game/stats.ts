@@ -76,7 +76,7 @@ export function renderStats(mxTimer: MXTimer): void {
 
   if (statsMode === 'local') {
     const timeStr = Math.floor(achState.elapsed / 60) + 'm ' + Math.floor(achState.elapsed % 60) + 's';
-    const userInfo = isLoggedIn() ? `<div class="stats-row"><span>Player</span><span class="stats-val" style="color:${sc}">${getUser()!.displayName}</span></div>` : '';
+    const userInfo = isLoggedIn() ? `<div class="stats-row"><span>Player</span><span class="stats-val" style="color:${sc}">${getUser()!.username} #${getUser()!.racerNumber}</span></div>` : '';
     statsPanel.innerHTML = `<div class="stats-close" id="statsClose">×</div><div class="stats-title">Statistics</div>${tabs}${userInfo}<div class="stats-row"><span>MX Races</span><span class="stats-val" style="color:${sc}">${achState.mxRacesCompleted}</span></div><div class="stats-row"><span>Session Time</span><span class="stats-val" style="color:${sc}">${timeStr}</span></div><div class="stats-row"><span>Achievements</span><span class="stats-val" style="color:${sc}">${achState.unlocked.size}/${ACH_DEFS.length}</span><span class="stats-bar"><span class="stats-bar-fill" style="width:${Math.round(achState.unlocked.size / ACH_DEFS.length * 100)}%;background:${pc}"></span></span></div><div class="stats-row" style="margin-top:6px"><span style="opacity:0.5;font-size:8px">LAP RECORDS</span></div>${MX_TRACKS.map(tr => `<div class="stats-row"><span>${tr.name}</span><span class="stats-val" style="color:${sc}">${mxTimer.bestLapTimes[tr.name] ? fmtMXTime(mxTimer.bestLapTimes[tr.name]) : '—'}</span></div>`).join('')}`;
   } else if (statsMode === 'global') {
     const g = globalStats;

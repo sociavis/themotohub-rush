@@ -41,21 +41,31 @@ function requireAuth(req: Request, res: Response): any | null {
 
 // ── POST /api/auth/register ──
 router.post('/register', async (req: Request, res: Response) => {
-  const { username, displayName, password } = req.body;
+  const { username, password, email, racerNumber, country } = req.body;
 
-  if (!username || !displayName || !password) {
+  if (!username || !password || !email) {
     res.status(400).json({ error: 'Missing required fields' });
     return;
   }
 
-  // Validate username
   if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
     res.status(400).json({ error: 'Username must be 3-20 characters (letters, numbers, underscore)' });
     return;
   }
 
-  if (displayName.length < 1 || displayName.length > 30) {
-    res.status(400).json({ error: 'Display name must be 1-30 characters' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: 'Invalid email address' });
+    return;
+  }
+
+  const rn = parseInt(racerNumber, 10);
+  if (!rn || rn < 1 || rn > 999) {
+    res.status(400).json({ error: 'Racer number must be 1-999' });
+    return;
+  }
+
+  if (!country || country.length < 2) {
+    res.status(400).json({ error: 'Country is required' });
     return;
   }
 
@@ -64,7 +74,6 @@ router.post('/register', async (req: Request, res: Response) => {
     return;
   }
 
-  // Check if username exists
   const existing = findUserByUsername.get(username);
   if (existing) {
     res.status(409).json({ error: 'Username already taken' });
@@ -75,13 +84,16 @@ router.post('/register', async (req: Request, res: Response) => {
   const now = Date.now();
 
   try {
-    const result = createUser.run(username, hash, displayName, now, now);
+    const result = createUser.run(username, hash, email, rn, country, now, now);
     const userId = result.lastInsertRowid as number;
     const token = crypto.randomUUID();
     createSession.run(userId, token, now, now + SESSION_DURATION);
 
     const user = findUserById.get(userId) as any;
-    res.json({ token, user: { id: user.id, username: user.username, displayName: user.display_name } });
+    res.json({
+      token,
+      user: { id: user.id, username: user.username, racerNumber: user.racer_number, country: user.country },
+    });
   } catch (err) {
     res.status(500).json({ error: 'Registration failed' });
   }
@@ -123,7 +135,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
   res.json({
     token,
-    user: { id: user.id, username: user.username, displayName: user.display_name, totalRaces: user.total_races },
+    user: { id: user.id, username: user.username, racerNumber: user.racer_number, country: user.country, totalRaces: user.total_races },
     bestTimes,
   });
 });
@@ -145,7 +157,7 @@ router.get('/me', (req: Request, res: Response) => {
   for (const b of bests) bestTimes[b.track_name] = b.best_time;
 
   res.json({
-    user: { id: user.id, username: user.username, displayName: user.display_name, totalRaces: user.total_races },
+    user: { id: user.id, username: user.username, racerNumber: user.racer_number, country: user.country, totalRaces: user.total_races },
     bestTimes,
   });
 });

@@ -24,7 +24,9 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    display_name TEXT NOT NULL,
+    email TEXT NOT NULL DEFAULT '',
+    racer_number INTEGER NOT NULL DEFAULT 0,
+    country TEXT NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL,
     last_login INTEGER NOT NULL,
     total_races INTEGER DEFAULT 0,
@@ -61,8 +63,8 @@ export default db;
 // ── User Queries ──
 
 export const createUser = db.prepare(`
-  INSERT INTO users (username, password_hash, display_name, created_at, last_login)
-  VALUES (?, ?, ?, ?, ?)
+  INSERT INTO users (username, password_hash, email, racer_number, country, created_at, last_login)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 
 export const findUserByUsername = db.prepare(`
@@ -70,7 +72,7 @@ export const findUserByUsername = db.prepare(`
 `);
 
 export const findUserById = db.prepare(`
-  SELECT id, username, display_name, created_at, last_login, total_races, total_laps, achievements
+  SELECT id, username, email, racer_number, country, created_at, last_login, total_races, total_laps, achievements
   FROM users WHERE id = ?
 `);
 
@@ -113,7 +115,7 @@ export const insertLapRecord = db.prepare(`
 `);
 
 export const getTrackLeaderboard = db.prepare(`
-  SELECT lr.lap_time, lr.recorded_at, lr.was_clean, u.username, u.display_name, u.id as user_id
+  SELECT lr.lap_time, lr.recorded_at, lr.was_clean, u.username, u.racer_number, u.country, u.id as user_id
   FROM lap_records lr
   JOIN users u ON lr.user_id = u.id
   WHERE lr.track_name = ?
@@ -141,7 +143,7 @@ export const getUserRank = db.prepare(`
 `);
 
 export const getWorldRecord = db.prepare(`
-  SELECT lr.lap_time, u.username, u.display_name
+  SELECT lr.lap_time, u.username, u.racer_number, u.country
   FROM lap_records lr
   JOIN users u ON lr.user_id = u.id
   WHERE lr.track_name = ?

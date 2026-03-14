@@ -1,7 +1,8 @@
 export interface UserProfile {
   id: number;
   username: string;
-  displayName: string;
+  racerNumber: number;
+  country: string;
   totalRaces?: number;
 }
 
@@ -24,11 +25,11 @@ async function apiFetch(url: string, opts: RequestInit = {}): Promise<Response> 
   return fetch(getApiBase() + url, { ...opts, headers });
 }
 
-export async function register(username: string, displayName: string, password: string): Promise<{ ok: boolean; error?: string }> {
+export async function register(username: string, password: string, email: string, racerNumber: number, country: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await apiFetch('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ username, displayName, password }),
+      body: JSON.stringify({ username, password, email, racerNumber, country }),
     });
     const data = await res.json();
     if (!res.ok) return { ok: false, error: data.error || 'Registration failed' };

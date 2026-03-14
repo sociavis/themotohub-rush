@@ -3,13 +3,31 @@ import { login, register, checkSession, getUser, isLoggedIn, getUserBestTimes, l
 import { fmtMXTime } from '../game/stats';
 import { MX_TRACKS } from '../game/tracks';
 
+const COUNTRIES = [
+  'Afghanistan','Albania','Algeria','Argentina','Armenia','Australia','Austria','Azerbaijan',
+  'Bahrain','Bangladesh','Belarus','Belgium','Bolivia','Bosnia','Brazil','Bulgaria',
+  'Cambodia','Cameroon','Canada','Chile','China','Colombia','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic',
+  'Denmark','Dominican Republic','Ecuador','Egypt','El Salvador','Estonia','Ethiopia',
+  'Finland','France','Georgia','Germany','Ghana','Greece','Guatemala',
+  'Haiti','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy',
+  'Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kuwait','Kyrgyzstan',
+  'Latvia','Lebanon','Libya','Lithuania','Luxembourg',
+  'Malaysia','Mexico','Moldova','Mongolia','Montenegro','Morocco','Mozambique','Myanmar',
+  'Nepal','Netherlands','New Zealand','Nicaragua','Nigeria','North Macedonia','Norway',
+  'Oman','Pakistan','Panama','Paraguay','Peru','Philippines','Poland','Portugal',
+  'Qatar','Romania','Russia','Rwanda',
+  'Saudi Arabia','Senegal','Serbia','Singapore','Slovakia','Slovenia','South Africa','South Korea','Spain','Sri Lanka','Sweden','Switzerland','Syria',
+  'Taiwan','Tanzania','Thailand','Tunisia','Turkey','Turkmenistan',
+  'Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan',
+  'Venezuela','Vietnam','Yemen','Zambia','Zimbabwe',
+];
+
 let onReady: (() => void) | null = null;
 
 export async function showWelcomeScreen(startGame: () => void): Promise<void> {
   onReady = startGame;
   const ws = document.getElementById('welcomeScreen')!;
 
-  // Check existing session
   const hasSession = await checkSession();
   if (hasSession) {
     renderLoggedIn(ws);
@@ -36,8 +54,8 @@ function renderLoggedIn(ws: HTMLElement): void {
   const t = T();
 
   ws.querySelector('.ws-content')!.innerHTML = `
-    <div class="ws-title">Welcome back, <span style="color:${rgba(t.secondary, 1)}">${user.displayName}</span></div>
-    <div class="ws-subtitle">Races completed: ${user.totalRaces || 0}</div>
+    <div class="ws-title">Welcome back, <span style="color:${rgba(t.secondary, 1)}">${user.username}</span></div>
+    <div class="ws-subtitle">#${user.racerNumber} · ${user.country} · Races: ${user.totalRaces || 0}</div>
     <div class="ws-records">
       <div class="ws-records-title">Personal bests</div>
       ${MX_TRACKS.map(tr => `
@@ -59,6 +77,8 @@ function renderLoggedIn(ws: HTMLElement): void {
 }
 
 function renderLoggedOut(ws: HTMLElement): void {
+  const countryOptions = COUNTRIES.map(c => `<option value="${c}">${c}</option>`).join('');
+
   ws.querySelector('.ws-content')!.innerHTML = `
     <div class="ws-title">Welcome, Rider</div>
     <div class="ws-subtitle">Socia Visual MX</div>
@@ -74,7 +94,12 @@ function renderLoggedOut(ws: HTMLElement): void {
     </form>
     <form class="ws-form ws-hidden" id="wsRegisterForm">
       <input type="text" placeholder="Username" id="wsRegUser" autocomplete="username" required>
-      <input type="text" placeholder="Display Name" id="wsRegDisplay" autocomplete="name" required>
+      <input type="email" placeholder="Email" id="wsRegEmail" autocomplete="email" required>
+      <input type="number" placeholder="Racer Number (1-999)" id="wsRegRacer" min="1" max="999" required>
+      <select id="wsRegCountry" required>
+        <option value="" disabled selected>Country</option>
+        ${countryOptions}
+      </select>
       <input type="password" placeholder="Password" id="wsRegPass" autocomplete="new-password" required>
       <input type="password" placeholder="Confirm Password" id="wsRegConfirm" autocomplete="new-password" required>
       <button type="submit" class="ws-btn">Register</button>
@@ -117,13 +142,17 @@ function renderLoggedOut(ws: HTMLElement): void {
   regForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const user = (document.getElementById('wsRegUser') as HTMLInputElement).value;
-    const display = (document.getElementById('wsRegDisplay') as HTMLInputElement).value;
+    const email = (document.getElementById('wsRegEmail') as HTMLInputElement).value;
+    const racer = parseInt((document.getElementById('wsRegRacer') as HTMLInputElement).value, 10);
+    const country = (document.getElementById('wsRegCountry') as HTMLSelectElement).value;
     const pass = (document.getElementById('wsRegPass') as HTMLInputElement).value;
     const confirm = (document.getElementById('wsRegConfirm') as HTMLInputElement).value;
     const err = document.getElementById('wsRegError')!;
     err.textContent = '';
     if (pass !== confirm) { err.textContent = 'Passwords do not match'; return; }
-    const result = await register(user, display, pass);
+    if (!racer || racer < 1 || racer > 999) { err.textContent = 'Racer number must be 1-999'; return; }
+    if (!country) { err.textContent = 'Please select a country'; return; }
+    const result = await register(user, pass, email, racer, country);
     if (result.ok) {
       renderLoggedIn(ws);
     } else {
@@ -146,7 +175,6 @@ function enterGame(): void {
 
 const ws = document.getElementById('welcomeScreen');
 if (ws) {
-  // Ensure welcome screen content container exists
   if (!ws.querySelector('.ws-content')) {
     const content = document.createElement('div');
     content.className = 'ws-content';
