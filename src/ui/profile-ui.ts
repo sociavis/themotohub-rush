@@ -50,7 +50,7 @@ function renderProfile(): void {
   }
 
   html += `<div class="profile-row"><span>ACHIEVEMENTS</span><span class="profile-val">${achState.unlocked.size}/${ACH_DEFS.length}</span></div>`;
-  html += `<div class="profile-row"><span>FUNDS</span><span class="profile-val">${upgrades.funds}</span></div>`;
+  html += `<div class="profile-row"><span>FUNDS</span><span class="profile-val">⛃ ${upgrades.funds}</span></div>`;
 
   // Upgrades summary
   html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06)">`;

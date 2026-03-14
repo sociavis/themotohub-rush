@@ -77,7 +77,7 @@ function showToast(a: AchievementDef): void {
   e.style.color = rgba(dc, 1);
   e.style.background = rgba(t.bg, 0.85);
   e.style.top = (130 + _toastOffset()) + 'px';
-  e.innerHTML = `<span class="toast-icon">${a.icon}</span><span class="toast-name">${a.name}</span><span class="toast-sep" style="background:${rgba(dc, 0.4)}"></span><span class="toast-desc">${a.desc}</span>`;
+  e.innerHTML = `<span class="toast-icon">${a.icon}</span><span class="toast-name">${a.name}</span><span class="toast-sep" style="background:${rgba(dc, 0.4)}"></span><span class="toast-desc">${a.desc}</span><span class="toast-reward" style="color:${rgba(dc, 0.8)}">⛃ 75</span>`;
   document.getElementById('hero')!.appendChild(e);
   setTimeout(() => e.remove(), 3200);
 }

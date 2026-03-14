@@ -18,7 +18,7 @@ export interface UpgradeState {
 }
 
 const UPGRADE_COSTS = [100, 300, 600]; // cost for level 1, 2, 3
-const ACHIEVEMENT_REWARD = 75; // funds per achievement
+export const ACHIEVEMENT_REWARD = 75; // funds per achievement
 
 export const BIKE_COLORS: { name: string; color: RGB }[] = [
   { name: 'Default', color: [255, 100, 0] },
@@ -190,7 +190,7 @@ export function renderShop(): void {
 
   let html = `<div class="panel-title" style="color:${rgba(t.primary, 0.8)}">SHOP</div>`;
   html += `<div class="panel-close" id="shopClose" style="color:${rgba(t.primary, 0.6)}">×</div>`;
-  html += `<div class="shop-funds"><div class="shop-funds-label">AVAILABLE FUNDS</div><div class="shop-funds-val">${upgrades.funds}</div></div>`;
+  html += `<div class="shop-funds"><div class="shop-funds-label">AVAILABLE FUNDS</div><div class="shop-funds-val">⛃ ${upgrades.funds}</div></div>`;
 
   for (const cat of categories) {
     const lvl = upgrades[cat.key];
@@ -208,7 +208,7 @@ export function renderShop(): void {
     }
     html += `</div></div>`;
     if (lvl < 3) {
-      html += `<div class="shop-buy-btn${canBuy ? '' : ' owned'}" data-upgrade="${cat.key}">${nextCost}</div>`;
+      html += `<div class="shop-buy-btn${canBuy ? '' : ' owned'}" data-upgrade="${cat.key}">⛃ ${nextCost}</div>`;
     } else {
       html += `<div class="shop-buy-btn owned">MAX</div>`;
     }
