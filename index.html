@@ -251,39 +251,20 @@ function updateMouse3D(){raycaster.setFromCamera(new THREE.Vector2((I.x/innerWid
 // ═══════════════════════════════════════════════════════
 // AUDIO ENGINE: Real MP3 + FFT Analysis
 // ═══════════════════════════════════════════════════════
-let audioCtx=null,soundOn=false,musicPlaying=false;
-let beatVal=0,bassVal=0,hiVal=0,midVal=0,arpVal=0;
-let analyser=null,fftData=null,prevBass=0,musicGain=null,sfxGain=null;
-const AUDIO_B64="https://sociavisual.com/aurorabetweenus.mp3";
-let audioEl=null,audioSrc=null;
+let audioCtx=null,soundOn=false;
+let sfxGain=null;
+// Engine sound state
+let engineNode=null,engineGain=null,engineRunning=false;
 
 function initAudio(){
   if(audioCtx){
-    // Resume suspended context (mobile fix)
     if(audioCtx.state==='suspended')audioCtx.resume();
     return;
   }
   audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  // Resume immediately for mobile
   if(audioCtx.state==='suspended')audioCtx.resume();
-  // SFX gain node (boost SFX)
-  sfxGain=audioCtx.createGain();sfxGain.gain.value=1.4;
+  sfxGain=audioCtx.createGain();sfxGain.gain.value=1.0;
   sfxGain.connect(audioCtx.destination);
-  // Analyser for FFT
-  analyser=audioCtx.createAnalyser();analyser.fftSize=512;analyser.smoothingTimeConstant=0.7;
-  fftData=new Uint8Array(analyser.frequencyBinCount);
-  // Music gain node (lower music volume)
-  musicGain=audioCtx.createGain();musicGain.gain.value=0.55;
-  // Create audio element with Web Audio routing for FFT + direct fallback
-  audioEl=new Audio();audioEl.loop=true;
-  fetch(AUDIO_B64).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){
-    audioEl.src=URL.createObjectURL(b);
-    audioSrc=audioCtx.createMediaElementSource(audioEl);
-    audioSrc.connect(musicGain);musicGain.connect(analyser);analyser.connect(audioCtx.destination);
-  }).catch(function(){
-    // CORS blocked: play directly without FFT routing
-    audioEl.src=AUDIO_B64;audioEl.volume=0.55;
-  });
 }
 
 function playTone(f,dur,vol=0.06,type='square'){
@@ -296,45 +277,55 @@ function playTone(f,dur,vol=0.06,type='square'){
   o.connect(g);g.connect(dest);o.start();o.stop(audioCtx.currentTime+dur);
 }
 
-function startMusic(){
-  if(musicPlaying||!audioEl)return;
-  if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
-  musicPlaying=true;
-  if(!audioEl.src){setTimeout(function(){if(soundOn){musicPlaying=false;startMusic()}},500);return}
-  const p=audioEl.play();
-  if(p!==undefined)p.catch(function(){
-    musicPlaying=false;
-    setTimeout(function(){if(soundOn&&!musicPlaying){musicPlaying=true;audioEl.play().catch(function(){musicPlaying=false})}},800);
-  });
-}
-function stopMusic(){
-  if(!audioEl)return;musicPlaying=false;audioEl.pause();
+// Noise burst helper — used for dirt/landing/roost sounds
+function playNoise(dur,vol,filterFreq,filterQ){
+  if(!audioCtx)return;
+  const buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*dur),audioCtx.sampleRate);
+  const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/(d.length*0.3));
+  const s=audioCtx.createBufferSource();s.buffer=buf;
+  const g=audioCtx.createGain();g.gain.value=vol;
+  const f=audioCtx.createBiquadFilter();f.type='bandpass';f.frequency.value=filterFreq;f.Q.value=filterQ||1;
+  const dest=sfxGain||audioCtx.destination;
+  s.connect(f);f.connect(g);g.connect(dest);s.start();
 }
 
-// Extract frequency bands from real FFT data
-function updateMusicReactive(){
-  if(!analyser||!fftData||!musicPlaying){beatVal*=0.9;bassVal*=0.9;midVal*=0.9;hiVal*=0.9;arpVal*=0.9;return}
-  analyser.getByteFrequencyData(fftData);
-  const bins=fftData.length;const nyquist=audioCtx.sampleRate/2;
-  const binHz=nyquist/bins;
-  // Bass: 20-150Hz
-  let bass=0,bCount=0;for(let i=Math.floor(20/binHz);i<Math.min(Math.ceil(150/binHz),bins);i++){bass+=fftData[i];bCount++}
-  bass=bCount?bass/bCount/255:0;
-  // Beat detection: bass transient
-  const bassDelta=bass-prevBass;if(bassDelta>0.08)beatVal=Math.min(bassDelta*4,1);
-  prevBass=bass*0.7+prevBass*0.3;
-  bassVal=Math.max(bassVal*0.88,bass*1.2);
-  // Mids: 200-2000Hz
-  let mid=0,mCount=0;for(let i=Math.floor(200/binHz);i<Math.min(Math.ceil(2000/binHz),bins);i++){mid+=fftData[i];mCount++}
-  midVal=Math.max(midVal*0.88,mCount?mid/mCount/255*1.3:0);
-  // High mids / arps: 2000-6000Hz
-  let hi=0,hCount=0;for(let i=Math.floor(2000/binHz);i<Math.min(Math.ceil(6000/binHz),bins);i++){hi+=fftData[i];hCount++}
-  arpVal=Math.max(arpVal*0.82,hCount?hi/hCount/255*1.2:0);
-  // Highs: 6000-16000Hz
-  let hh=0,hhCount=0;for(let i=Math.floor(6000/binHz);i<Math.min(Math.ceil(16000/binHz),bins);i++){hh+=fftData[i];hhCount++}
-  hiVal=Math.max(hiVal*0.86,hhCount?hh/hhCount/255:0);
-  // Beat decay
-  beatVal*=0.85;
+// Continuous engine sound — pitch follows bike speed
+function startEngine(){
+  if(engineRunning||!audioCtx)return;
+  engineRunning=true;
+  // Two detuned sawtooth oscillators for a rough engine tone
+  const o1=audioCtx.createOscillator();o1.type='sawtooth';o1.frequency.value=60;
+  const o2=audioCtx.createOscillator();o2.type='sawtooth';o2.frequency.value=62;
+  // Waveshaper for distortion / grit
+  const ws=audioCtx.createWaveShaper();
+  const curve=new Float32Array(256);for(let i=0;i<256;i++){const x=i/128-1;curve[i]=Math.tanh(x*3)}
+  ws.curve=curve;ws.oversample='2x';
+  // Bandpass to shape engine tone
+  const bp=audioCtx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=180;bp.Q.value=2;
+  // Volume
+  engineGain=audioCtx.createGain();engineGain.gain.value=0;
+  const dest=sfxGain||audioCtx.destination;
+  o1.connect(ws);o2.connect(ws);ws.connect(bp);bp.connect(engineGain);engineGain.connect(dest);
+  o1.start();o2.start();
+  engineNode={o1,o2,bp,ws};
+}
+function updateEngine(speed,maxSpeed,accel){
+  if(!engineNode||!engineGain)return;
+  const ratio=speed/maxSpeed;
+  // Pitch: idle 55Hz → full throttle 180Hz
+  const freq=55+ratio*125;
+  engineNode.o1.frequency.value=freq;
+  engineNode.o2.frequency.value=freq*1.03;// slight detune for richness
+  engineNode.bp.frequency.value=120+ratio*200;
+  // Volume: louder when throttle is on, quieter coasting
+  const targetVol=speed<0.5?0:(accel?0.06+ratio*0.06:0.02+ratio*0.03);
+  engineGain.gain.value=lerp(engineGain.gain.value,targetVol,0.1);
+}
+function stopEngine(){
+  if(!engineRunning||!engineNode)return;
+  engineRunning=false;
+  try{engineNode.o1.stop();engineNode.o2.stop()}catch(e){}
+  engineNode=null;engineGain=null;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -359,8 +350,7 @@ function warpGrid(t,cx,cz,str){
     const d=Math.hypot(ox-cx,oz-cz);
     const pull=d<18?Math.pow(1-d/18,2)*str:0;
     const wave=Math.sin(d*0.3-t*2)*0.05;
-    const musicPulse=(beatVal*0.4+bassVal*0.25)*Math.exp(-d*0.08);
-    arr[i+1]=gOrig[i+1]-pull+wave+musicPulse;
+    arr[i+1]=gOrig[i+1]-pull+wave;
     arr[i]=gOrig[i];arr[i+2]=gOrig[i+2];
   }
   gV.needsUpdate=true;
@@ -376,7 +366,7 @@ const pMat=new THREE.PointsMaterial({size:0.18,vertexColors:true,transparent:tru
 scene.add(new THREE.Points(pGeo,pMat));
 const parts=[];
 class Pt{constructor(x,y,z,vx,vy,vz,c,life,sz){this.x=x;this.y=y;this.z=z;this.vx=vx;this.vy=vy;this.vz=vz;this.c=c;this.life=this.ml=life;this.sz=sz}}
-function syncP(){for(let i=0;i<MAXP;i++){if(i<parts.length){const p=parts[i];const a=clamp(p.life/p.ml,0,1);const c=tC(p.c);pPos[i*3]=p.x;pPos[i*3+1]=p.y;pPos[i*3+2]=p.z;pCol[i*3]=c.r*a;pCol[i*3+1]=c.g*a;pCol[i*3+2]=c.b*a;pSz[i]=p.sz*a*(1+beatVal*0.6+bassVal*0.3)}else{pPos[i*3+1]=-100;pSz[i]=0}}pGeo.attributes.position.needsUpdate=pGeo.attributes.color.needsUpdate=pGeo.attributes.size.needsUpdate=true}
+function syncP(){for(let i=0;i<MAXP;i++){if(i<parts.length){const p=parts[i];const a=clamp(p.life/p.ml,0,1);const c=tC(p.c);pPos[i*3]=p.x;pPos[i*3+1]=p.y;pPos[i*3+2]=p.z;pCol[i*3]=c.r*a;pCol[i*3+1]=c.g*a;pCol[i*3+2]=c.b*a;pSz[i]=p.sz*a}else{pPos[i*3+1]=-100;pSz[i]=0}}pGeo.attributes.position.needsUpdate=pGeo.attributes.color.needsUpdate=pGeo.attributes.size.needsUpdate=true}
 
 // Shockwaves (used by MX)
 const shocks=[];
@@ -775,7 +765,7 @@ function setVis(sec){
 
 const secs=[
   {// MX
-    enter(){mxGameActive=true;buildTrack();resetMX();setVis(0)},
+    enter(){mxGameActive=true;buildTrack();resetMX();setVis(0);if(soundOn)startEngine()},
     exit(){mxGameActive=false;mxAccel=false;
       // Restore default atmosphere
       const t=T();R.setClearColor(new THREE.Color(t.bg[0]/255,t.bg[1]/255,t.bg[2]/255));scene.fog.color.set(new THREE.Color(t.bg[0]/255,t.bg[1]/255,t.bg[2]/255));scene.fog.density=0.006;
@@ -810,7 +800,7 @@ const secs=[
         if(mxBike.speed>6)achState.mxBermHits=(achState.mxBermHits||0)+1}
       mxBike.lean=lerp(mxBike.lean,(mxBike.lat+mxBike.driftFactor*0.5)*-0.5,0.18);
       // Speed — fast launch burst, quadratic top-end
-      if(mxAccel&&mxTimer.running){const targetSpeed=mxBike.maxSpeed*(1+beatVal*0.15);
+      if(mxAccel&&mxTimer.running){const targetSpeed=mxBike.maxSpeed;
         const ratio=mxBike.speed/targetSpeed;const launchBoost=mxBike.speed<4?2.5:1;
         const accelF=(1-ratio*ratio)*mxBike.accel*dt*0.15*launchBoost;
         mxBike.speed=Math.min(mxBike.speed+accelF,targetSpeed)}
@@ -858,16 +848,16 @@ const secs=[
       // Invisible checkpoint detection
       for(const cp of mxCPMeshes){const cpT=cp.userData.cpT;const cpIdx=cp.userData.cpIdx;
         if(!mxTimer.cpsHit.has(cpIdx)){const diff=Math.abs(mxBike.t-cpT);
-          if(diff<0.04||diff>0.96){mxTimer.cpsHit.add(cpIdx);sndClick()}}}
+          if(diff<0.04||diff>0.96){mxTimer.cpsHit.add(cpIdx);sndCheckpoint()}}}
       // Hills / airborne
       const trackH=getTrackHeight(mxBike.t);
       if(!mxBike.airborne){const nextH=getTrackHeight(Math.min(mxBike.t+0.008,0.999));
-        if(trackH>0.3&&nextH<trackH-0.08&&mxBike.speed>4){mxBike.airborne=true;mxBike.jumpVel=mxBike.speed*0.22;mxBike.hOff=trackH}
+        if(trackH>0.3&&nextH<trackH-0.08&&mxBike.speed>4){mxBike.airborne=true;mxBike.jumpVel=mxBike.speed*0.22;mxBike.hOff=trackH;sndJump()}
         else{mxBike.hOff=trackH}}
       else{mxBike.jumpVel-=10*dt;mxBike.hOff+=mxBike.jumpVel*dt;
         mxTimer.airTime+=dt;if(mxTimer.airTime>achState.mxMaxAir)achState.mxMaxAir=mxTimer.airTime;
         if(mxBike.hOff<=trackH){mxBike.hOff=trackH;mxBike.airborne=false;
-          mxBike.speed=Math.min(mxBike.speed*1.05,mxBike.maxSpeed*1.1);mxBike.jumpVel=0;mxTimer.airTime=0;
+          mxBike.speed=Math.min(mxBike.speed*1.05,mxBike.maxSpeed*1.1);mxBike.jumpVel=0;sndLanding();mxTimer.airTime=0;
           for(let i=0;i<8&&parts.length<MAXP;i++){const a=Math.random()*Math.PI*2;parts.push(new Pt(mxBike.pos.x,0.1,mxBike.pos.z,Math.cos(a)*0.3,Math.random()*0.15,Math.sin(a)*0.3,T().primary,1.2+Math.random(),0.1))}}}
       // Position bike (re-evaluate spline after t changed)
       curPt=mxSpline.getPointAt(mxBike.t);curTan=mxSpline.getTangentAt(mxBike.t).normalize();
@@ -890,7 +880,7 @@ const secs=[
       else if(dustTrail.length>0){dustTrail.shift()}
       const dp=dustLine.geometry.attributes.position.array;
       for(let i=0;i<30;i++){if(i<dustTrail.length){dp[i*3]=dustTrail[i].x;dp[i*3+1]=dustTrail[i].y;dp[i*3+2]=dustTrail[i].z}else{dp[i*3]=mxBike.pos.x;dp[i*3+1]=0;dp[i*3+2]=mxBike.pos.z}}
-      dustLine.geometry.attributes.position.needsUpdate=true;dustLine.material.opacity=0.2+bassVal*0.15;
+      dustLine.geometry.attributes.position.needsUpdate=true;dustLine.material.opacity=0.25;
       // Tire track trail — permanent marks left on the surface
       if(mxBike.speed>1&&!mxBike.airborne){
         const lastTire=tireTrail[tireTrail.length-1];
@@ -930,8 +920,10 @@ const secs=[
       for(let i=0;i<MX_AMB_MAX;i++){if(i<mxAmbientParts.length){const p=mxAmbientParts[i];amp[i*3]=p.x;amp[i*3+1]=p.y;amp[i*3+2]=p.z;ams[i]=Math.min(p.life/p.ml,1)*0.15}else{amp[i*3]=0;amp[i*3+1]=-10;amp[i*3+2]=0;ams[i]=0}}
       mxAmbPoints.geometry.attributes.position.needsUpdate=true;mxAmbPoints.geometry.attributes.size.needsUpdate=true;
       // Music reactivity
-      frame.material.emissiveIntensity=0.5+midVal*0.4+beatVal*0.3+(mxAccel?0.2:0);
-      warpGrid(t,mxBike.pos.x,mxBike.pos.z,0.6+mxBike.speed*0.05+bassVal*0.3);
+      frame.material.emissiveIntensity=0.5+(mxAccel?0.2:0);
+      warpGrid(t,mxBike.pos.x,mxBike.pos.z,0.6+mxBike.speed*0.05);
+      // Engine sound
+      if(soundOn)updateEngine(mxBike.speed,mxBike.maxSpeed,mxAccel);
     },
     hud(t){
       const trk=MX_TRACKS[mxTrackIdx];const now=performance.now()/1000;
@@ -1046,24 +1038,34 @@ function showPop(a,anchor){closePop();const e=document.createElement('div');e.cl
 function closePop(){if(activePopup){activePopup.remove();activePopup=null}}
 
 // ═══════════════════════════════════════════════════════
-// SOUND (SFX — music handled above)
+// SOUND (MX SFX)
 // ═══════════════════════════════════════════════════════
 let _lastBtnTap=0;function btnGuard(){const now=Date.now();if(now-_lastBtnTap<350)return false;_lastBtnTap=now;return true}
 const soundBtn=document.getElementById('soundBtn');
-function sndClick(){if(!soundOn||!audioCtx)return;playTone(800,.08,.12,'square')}
-function sndShockwave(){if(!soundOn||!audioCtx)return;playTone(120,.3,.1);playTone(60,.5,.06)}
-function sndSectionChange(){if(!soundOn||!audioCtx)return;playTone(600,.06,.1,'square');setTimeout(()=>playTone(900,.08,.08,'square'),80);setTimeout(()=>playTone(1200,.1,.1,'square'),160)}
-function sndAchievement(){if(!soundOn||!audioCtx)return;playTone(523,.1,.12);setTimeout(()=>playTone(659,.1,.12),100);setTimeout(()=>playTone(784,.15,.14),200);setTimeout(()=>playTone(1047,.25,.1),300)}
-function sndThemeSwitch(){if(!soundOn||!audioCtx)return;playTone(400,.08,.08,'triangle');setTimeout(()=>playTone(600,.1,.08,'triangle'),60)}
+// Race start — rev burst
+function sndClick(){if(!soundOn||!audioCtx)return;playTone(90,.15,.08,'sawtooth');playTone(120,.1,.06,'sawtooth')}
+// Shockwave — not used much now, repurposed as a burst
+function sndShockwave(){if(!soundOn||!audioCtx)return;playTone(80,.2,.1,'sawtooth');playNoise(0.15,0.06,200,1)}
+// Lap complete — ascending chime
+function sndSectionChange(){if(!soundOn||!audioCtx)return;playTone(440,.08,.1,'triangle');setTimeout(()=>playTone(554,.08,.1,'triangle'),70);setTimeout(()=>playTone(659,.1,.1,'triangle'),140)}
+// Achievement — triumphant fanfare
+function sndAchievement(){if(!soundOn||!audioCtx)return;playTone(523,.1,.1,'triangle');setTimeout(()=>playTone(659,.1,.1,'triangle'),100);setTimeout(()=>playTone(784,.12,.12,'triangle'),200);setTimeout(()=>playTone(1047,.2,.08,'triangle'),300)}
+// Theme switch — subtle click
+function sndThemeSwitch(){if(!soundOn||!audioCtx)return;playTone(350,.05,.06,'triangle');setTimeout(()=>playTone(500,.06,.05,'triangle'),50)}
+// Checkpoint hit — short ping
+function sndCheckpoint(){if(!soundOn||!audioCtx)return;playTone(1200,.06,.08,'sine');playTone(1600,.04,.05,'sine')}
+// Landing thud — low thump + dirt noise
+function sndLanding(){if(!soundOn||!audioCtx)return;playTone(50,.12,.12,'sine');playNoise(0.1,0.08,300,2)}
+// Jump launch — whoosh
+function sndJump(){if(!soundOn||!audioCtx)return;playTone(200,.08,.05,'sawtooth');playTone(400,.06,.03,'sawtooth')}
 function toggleSound(){
   initAudio();
-  // Resume AudioContext on user gesture (critical for mobile)
   if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
   soundOn=!soundOn;
   soundBtn.classList.toggle('on',soundOn);
   soundBtn.classList.toggle('off',!soundOn);
-  if(soundOn){playTone(600,.06,.08,'square');startMusic()}
-  else{stopMusic()}
+  if(soundOn){playTone(350,.05,.06,'triangle');startEngine()}
+  else{stopEngine()}
 }
 // Mobile: resume audio context on any touch
 document.addEventListener('touchstart',function resumeAudio(){
@@ -1161,19 +1163,17 @@ function animate(){
   if(I.down)I.holdTime+=0.016;
   updateMouse3D();
   // Cursor bloom follows mouse
-  cursorLight.position.set(I.mx,1.5,I.mz);cursorLight.intensity=0.8+beatVal*0.6;
+  cursorLight.position.set(I.mx,1.5,I.mz);cursorLight.intensity=0.8;
   cursorGlow.position.set(I.mx,0.5,I.mz);
-  cursorGlowMat.opacity=0.38+beatVal*0.18+bassVal*0.1;
-  const glowScale=7+beatVal*5+bassVal*2.5;
+  cursorGlowMat.opacity=0.38;
+  const glowScale=7;
   cursorGlow.scale.set(glowScale,glowScale,1);
 
-  // Music FFT analysis
-  updateMusicReactive();
-  gridMat.opacity=gridBaseOpacity+beatVal*0.03+bassVal*0.02;
+  gridMat.opacity=gridBaseOpacity;
 
   // Camera
   const ct=camTargets[0];const mx=(I.rx-0.5),my=(I.ry-0.5);
-  const camShake=beatVal*0.08;
+  const camShake=0;
   let cTargetX=ct.px+mx*4,cTargetY=ct.py,cTargetZ=ct.pz+my*3;
   let cLookX=ct.lx,cLookY=ct.ly,cLookZ=ct.lz;
   if(mxGameActive){
@@ -1185,8 +1185,8 @@ function animate(){
   cam.lx=lerp(cam.lx,cLookX,lookLerp);cam.ly=lerp(cam.ly,cLookY,lookLerp);cam.lz=lerp(cam.lz,cLookZ,lookLerp);
   camera.position.set(cam.px,cam.py,cam.pz);camera.lookAt(cam.lx,cam.ly,cam.lz);
   ptL.position.x=lerp(ptL.position.x,I.mx*0.4,0.04);ptL.position.z=lerp(ptL.position.z,I.mz*0.4,0.04);
-  ptL.intensity=3+beatVal*4+bassVal*2+(I.down?I.holdTime:0);
-  ptL2.intensity=1.5+midVal*2+arpVal*1.5;
+  ptL.intensity=3+(I.down?I.holdTime:0);
+  ptL2.intensity=1.5;
 
   secs[curSec].update(t);secs[curSec].hud(t);tickFPS(t);
   achState.elapsed=t;if(I.vel>achState.maxVel)achState.maxVel=I.vel;achState.totalDist+=I.vel;
