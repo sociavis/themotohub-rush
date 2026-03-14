@@ -373,16 +373,6 @@ const shocks=[];
 function mkShock(c,spd){const g=new THREE.RingGeometry(0.1,0.3,64);g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:tC(c),transparent:true,opacity:0.6,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false}));m.position.set(I.mx,0.15,I.mz);scene.add(m);shocks.push({m,life:1,spd})}
 
 // Cursor bloom light
-const cursorLight=new THREE.PointLight(tC(T().primary),1.2,20,1.8);cursorLight.position.set(0,1.5,0);scene.add(cursorLight);
-// Cursor glow light (flat sprite bloom effect)
-const _glowCanvas=document.createElement('canvas');_glowCanvas.width=128;_glowCanvas.height=128;
-const _glowCtx=_glowCanvas.getContext('2d');
-const _glowGrad=_glowCtx.createRadialGradient(64,64,0,64,64,64);
-_glowGrad.addColorStop(0,'rgba(255,255,255,1)');_glowGrad.addColorStop(0.15,'rgba(255,255,255,0.7)');_glowGrad.addColorStop(0.4,'rgba(255,255,255,0.2)');_glowGrad.addColorStop(1,'rgba(255,255,255,0)');
-_glowCtx.fillStyle=_glowGrad;_glowCtx.fillRect(0,0,128,128);
-const _glowTex=new THREE.CanvasTexture(_glowCanvas);
-const cursorGlowMat=new THREE.SpriteMaterial({map:_glowTex,color:tC(T().primary),transparent:true,opacity:0.45,blending:THREE.AdditiveBlending,depthWrite:false});
-const cursorGlow=new THREE.Sprite(cursorGlowMat);cursorGlow.position.set(0,0.5,0);cursorGlow.scale.set(8,8,1);scene.add(cursorGlow);
 
 
 // ═══════════════════════════════════════════════════════
@@ -982,7 +972,7 @@ function applyTheme(idx){
   ['globeBtn','soundBtn','contactBtn'].forEach(id=>{const e=document.getElementById(id);e.style.borderColor=rgba(t.primary,.2);e.querySelector('svg').style.color=rgba(t.primary,1)});
   const ml=document.querySelector('.mute-line');if(ml)ml.style.background=rgba(t.primary,1);
   R.setClearColor(new THREE.Color(t.bg[0]/255,t.bg[1]/255,t.bg[2]/255));scene.fog.color.set(new THREE.Color(t.bg[0]/255,t.bg[1]/255,t.bg[2]/255));
-  cursorLight.color=tC(t.primary);cursorGlowMat.color=tC(t.primary);gridMat.color=tC(t.grid);ptL.color=tC(t.primary);ptL2.color=tC(t.secondary);
+  gridMat.color=tC(t.grid);ptL.color=tC(t.primary);ptL2.color=tC(t.secondary);
   frame.material.color=tC(t.primary);frame.material.emissive=tC(t.primary);seat.material.color=tC(t.primary);seat.material.emissive=tC(t.primary);
   dustLine.material.color=tC(t.primary);tireTrailLine.material.color=tC(t.primary);
   mxTrackMeshes.forEach(m=>{if(m.material&&m.material.emissive){m.material.color=tC(t.primary);m.material.emissive=tC(t.primary)}else if(m.material&&m.material.color)m.material.color=tC(t.primary)});
@@ -1163,11 +1153,6 @@ function animate(){
   if(I.down)I.holdTime+=0.016;
   updateMouse3D();
   // Cursor bloom follows mouse
-  cursorLight.position.set(I.mx,1.5,I.mz);cursorLight.intensity=0.8;
-  cursorGlow.position.set(I.mx,0.5,I.mz);
-  cursorGlowMat.opacity=0.38;
-  const glowScale=7;
-  cursorGlow.scale.set(glowScale,glowScale,1);
 
   gridMat.opacity=gridBaseOpacity;
 
