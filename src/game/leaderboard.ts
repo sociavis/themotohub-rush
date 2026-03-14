@@ -69,7 +69,7 @@ export async function submitLapTime(
 
 export async function fetchWorldRecord(trackName: string): Promise<WorldRecord | null> {
   try {
-    const res = await fetch(`${getApiBase()}/leaderboard/${encodeURIComponent(trackName)}/wr`, { headers: authHeaders() });
+    const res = await fetch(`${getApiBase()}/leaderboard/wr?track=${encodeURIComponent(trackName)}`, { headers: authHeaders() });
     if (!res.ok) return null;
     const data = await res.json();
     return data.worldRecord || null;
