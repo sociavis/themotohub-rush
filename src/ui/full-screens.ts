@@ -7,7 +7,7 @@ import { fmtMXTime } from '../game/stats';
 import { getWRForTrack } from '../game/leaderboard';
 import { initBikePreview, destroyBikePreview, highlightPart, previewBikeColor, refreshPreviewBike } from './bike-preview';
 
-const COIN = '⛃';
+const COIN = '◉';
 
 let backCallback: (() => void) | null = null;
 
@@ -59,10 +59,10 @@ function renderFullShop(el: HTMLElement): void {
   const UPGRADE_COSTS = [100, 300, 600];
   const COLOR_COSTS = [0, 150, 150, 200, 200, 250, 250, 300];
   const categories = [
-    { key: 'tires' as const, name: 'TIRES', desc: ['Stock tires', 'Grip compound', 'Racing slicks', 'Pro grip'], stat: 'Better grip & handling', icon: '◎' },
-    { key: 'engine' as const, name: 'ENGINE', desc: ['Stock engine', '250cc bore', '350cc bore', '450cc race'], stat: 'More top speed', icon: '⚙' },
-    { key: 'gearbox' as const, name: 'GEARBOX', desc: ['Stock gears', 'Close ratio', 'Racing gears', 'Pro shift'], stat: 'Better acceleration', icon: '⟐' },
-    { key: 'suspension' as const, name: 'SUSPENSION', desc: ['Stock forks', 'Sport dampers', 'Pro shocks', 'Factory race'], stat: 'Better on jumps & bumps', icon: '↕' },
+    { key: 'tires' as const, name: 'TIRES', desc: ['Stock knobbies', 'Intermediate tread', 'Soft compound', 'Factory grip'], stat: 'Better grip & traction', icon: '◎' },
+    { key: 'engine' as const, name: 'ENGINE', desc: ['Stock 250f', '250f ported', '350f bored', '450f race'], stat: 'More power & top speed', icon: '⚙' },
+    { key: 'gearbox' as const, name: 'GEARBOX', desc: ['Stock gears', 'Close ratio', 'Works gears', 'Factory shift'], stat: 'Faster holeshots', icon: '⟐' },
+    { key: 'suspension' as const, name: 'SUSPENSION', desc: ['Stock forks', 'Revalved forks', 'Race-tuned', 'Factory kit'], stat: 'Better on jumps & whoops', icon: '↕' },
   ];
 
   let html = `<div class="fp-content fp-shop-layout">`;

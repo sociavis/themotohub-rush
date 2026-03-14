@@ -9,11 +9,15 @@ export interface UserProfile {
 let currentUser: UserProfile | null = null;
 let authToken: string | null = null;
 let userBestTimes: Record<string, number> = {};
+let serverAchievements: string = '';
+let serverUpgrades: string = '';
 
 export function getUser(): UserProfile | null { return currentUser; }
 export function getToken(): string | null { return authToken; }
 export function isLoggedIn(): boolean { return currentUser !== null; }
 export function getUserBestTimes(): Record<string, number> { return userBestTimes; }
+export function getServerAchievements(): string { return serverAchievements; }
+export function getServerUpgrades(): string { return serverUpgrades; }
 
 function getApiBase(): string {
   return '/api';
@@ -36,6 +40,8 @@ export async function register(username: string, password: string, email: string
     authToken = data.token;
     currentUser = data.user;
     userBestTimes = data.bestTimes || {};
+    serverAchievements = data.achievementsData || '';
+    serverUpgrades = data.upgradesData || '';
     localStorage.setItem('mx_token', data.token);
     return { ok: true };
   } catch {
@@ -54,6 +60,8 @@ export async function login(username: string, password: string): Promise<{ ok: b
     authToken = data.token;
     currentUser = data.user;
     userBestTimes = data.bestTimes || {};
+    serverAchievements = data.achievementsData || '';
+    serverUpgrades = data.upgradesData || '';
     localStorage.setItem('mx_token', data.token);
     return { ok: true };
   } catch {
@@ -85,6 +93,8 @@ export async function checkSession(): Promise<boolean> {
     const data = await res.json();
     currentUser = data.user;
     userBestTimes = data.bestTimes || {};
+    serverAchievements = data.achievementsData || '';
+    serverUpgrades = data.upgradesData || '';
     return true;
   } catch {
     authToken = null;
@@ -97,4 +107,14 @@ export function updateBestTime(trackName: string, lapTime: number): void {
   if (!userBestTimes[trackName] || lapTime < userBestTimes[trackName]) {
     userBestTimes[trackName] = lapTime;
   }
+}
+
+export async function saveProgressToServer(achievements: object, upgrades: object): Promise<void> {
+  if (!authToken) return;
+  try {
+    await apiFetch('/user/save-progress', {
+      method: 'POST',
+      body: JSON.stringify({ achievements, upgrades }),
+    });
+  } catch { /* ignore network errors */ }
 }

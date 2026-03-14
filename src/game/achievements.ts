@@ -52,7 +52,7 @@ const achTray = document.getElementById('achTray')!;
 let activePopup: HTMLElement | null = null;
 
 // ── Persistence ──
-function saveAchState(): void {
+export function saveAchState(): void {
   try {
     localStorage.setItem('mx_achstate', JSON.stringify({
       unlocked: [...achState.unlocked],
@@ -124,7 +124,7 @@ function showToast(a: AchievementDef): void {
   e.style.color = rgba(dc, 1);
   e.style.background = rgba(t.bg, 0.85);
   e.style.top = (130 + _toastOffset()) + 'px';
-  e.innerHTML = `<span class="toast-icon">${a.icon}</span><span class="toast-name">${a.name}</span><span class="toast-sep" style="background:${rgba(dc, 0.4)}"></span><span class="toast-desc">${a.desc}</span><span class="toast-reward" style="color:${rgba(dc, 0.8)}">⛃ 75</span>`;
+  e.innerHTML = `<span class="toast-icon">${a.icon}</span><span class="toast-name">${a.name}</span><span class="toast-sep" style="background:${rgba(dc, 0.4)}"></span><span class="toast-desc">${a.desc}</span><span class="toast-reward" style="color:${rgba(dc, 0.8)}">◉ 75</span>`;
   document.getElementById('hero')!.appendChild(e);
   setTimeout(() => e.remove(), 3200);
 }
@@ -145,8 +145,11 @@ export function showWRToast(trackName: string, lapTime: number, isGlobal: boolea
 }
 
 function addBadge(a: AchievementDef): void {
+  // Skip if badge already exists
+  if (achTray.querySelector(`.ach-badge[data-ach-id="${a.id}"]`)) return;
   const e = document.createElement('div');
   e.className = 'ach-badge ach-' + a.diff;
+  e.dataset.achId = a.id;
   e.dataset.diffOrder = String(DIFF_ORDER[a.diff]);
   e.dataset.diff = a.diff;
   const dc = getDiffColor(a.diff);
@@ -191,6 +194,40 @@ function addBadge(a: AchievementDef): void {
 
 export function closePop(): void {
   if (activePopup) { activePopup.remove(); activePopup = null; }
+}
+
+export function mergeServerAchievements(serverDataStr: string): void {
+  if (!serverDataStr) return;
+  try {
+    const data = JSON.parse(serverDataStr);
+    if (data.unlocked) for (const id of data.unlocked) achState.unlocked.add(id);
+    if (data.mxRacesCompleted) achState.mxRacesCompleted = Math.max(achState.mxRacesCompleted, data.mxRacesCompleted);
+    if (data.mxLaps) achState.mxLaps = Math.max(achState.mxLaps, data.mxLaps);
+    if (data.mxMaxAir) achState.mxMaxAir = Math.max(achState.mxMaxAir, data.mxMaxAir);
+    if (data.mxBestTime) achState.mxBestTime = data.mxBestTime > 0 ? (achState.mxBestTime > 0 ? Math.min(achState.mxBestTime, data.mxBestTime) : data.mxBestTime) : achState.mxBestTime;
+    if (data.mxCleanLaps) achState.mxCleanLaps = Math.max(achState.mxCleanLaps, data.mxCleanLaps);
+    if (data.mxTracksCompleted) achState.mxTracksCompleted = Math.max(achState.mxTracksCompleted, data.mxTracksCompleted);
+    if (data.mxBermHits) achState.mxBermHits = Math.max(achState.mxBermHits, data.mxBermHits);
+    // Re-add badges for merged achievements
+    for (const a of ACH_DEFS) {
+      if (achState.unlocked.has(a.id)) addBadge(a);
+    }
+    // Save the merged state back to localStorage
+    saveAchState();
+  } catch {}
+}
+
+export function getAchSaveData(): object {
+  return {
+    unlocked: [...achState.unlocked],
+    mxRacesCompleted: achState.mxRacesCompleted,
+    mxLaps: achState.mxLaps,
+    mxMaxAir: achState.mxMaxAir,
+    mxBestTime: achState.mxBestTime,
+    mxCleanLaps: achState.mxCleanLaps,
+    mxTracksCompleted: achState.mxTracksCompleted,
+    mxBermHits: achState.mxBermHits,
+  };
 }
 
 export function recolorBadges(): void {

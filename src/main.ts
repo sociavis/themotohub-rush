@@ -12,7 +12,7 @@ import {
   updateDustTrail, updateTireTrail, updateRoostParticles, updateAmbientParticles,
 } from './game/track-builder';
 import { MX_TRACKS, TRACK_W, MX_CHECKPOINTS } from './game/tracks';
-import { achState, checkAch, showWRToast, loadAchState } from './game/achievements';
+import { achState, checkAch, showWRToast, loadAchState, mergeServerAchievements, getAchSaveData } from './game/achievements';
 import { tickFPS, fps, updateHUD } from './game/hud';
 import { globalStats, fetchGlobalStats, pushSessionStats, reportVisit, fmtMXTime, initStatsListeners, STATS_API, _mxRacesPushedLive, incrementMxRacesPushedLive } from './game/stats';
 import { applyTheme } from './ui/theme-ui';
@@ -20,9 +20,9 @@ import { initContact } from './ui/contact';
 import { startLoading } from './ui/loading';
 import { initSoundToggle } from './game/sound-toggle';
 import type { MXTimer } from './game/types';
-import { isLoggedIn, updateBestTime } from './game/auth';
+import { isLoggedIn, updateBestTime, getServerAchievements, getServerUpgrades, saveProgressToServer } from './game/auth';
 import { submitLapTime, fetchLeaderboard, fetchWorldRecord, getWRForTrack } from './game/leaderboard';
-import { initShop, applyUpgrades, checkAchievementFunds, getSuspensionBonus, getTireGrip } from './game/shop';
+import { initShop, applyUpgrades, checkAchievementFunds, getSuspensionBonus, getTireGrip, mergeServerUpgrades, getUpgradeSaveData } from './game/shop';
 import { initLeaderboardUI } from './ui/leaderboard-ui';
 import { initProfileUI } from './ui/profile-ui';
 import { showMainMenu, hideMainMenu } from './ui/main-menu';
@@ -591,6 +591,20 @@ function init(): void {
   initStatsListeners(mxTimer);
   loadAchState();
   initShop();
+
+  // Merge server-side progress if logged in
+  if (isLoggedIn()) {
+    mergeServerAchievements(getServerAchievements());
+    mergeServerUpgrades(getServerUpgrades());
+  }
+
+  // Sync progress to server periodically
+  if (isLoggedIn()) {
+    setInterval(() => {
+      saveProgressToServer(getAchSaveData(), getUpgradeSaveData());
+    }, 30000);
+  }
+
   initLeaderboardUI();
   initProfileUI();
   reportVisit();

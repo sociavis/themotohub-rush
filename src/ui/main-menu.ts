@@ -2,7 +2,7 @@ import { T, rgba } from '../game/themes';
 import { isLoggedIn, getUser } from '../game/auth';
 import { upgrades } from '../game/shop';
 
-const COIN = '⛃';
+const COIN = '◉';
 
 export type MenuAction = 'race' | 'shop' | 'profile' | 'achievements';
 
@@ -39,12 +39,11 @@ function renderMenu(): void {
     <div class="mm-content">
       <div class="mm-logo">
         ${logoSvg}
-        <div class="mm-title" style="color:${p}">SOCIA MX</div>
         <div class="mm-subtitle" style="color:${rgba(t.primary, 0.25)}">MOTOCROSS</div>
       </div>
       <div class="mm-rider-info">
-        <div class="mm-rider" style="color:${s}">${greeting}</div>
-        <div class="mm-funds" style="color:${rgba(t.primary, 0.6)}">${COIN} ${upgrades.funds}</div>
+        <div class="mm-rider-row"><span class="mm-label" style="color:${rgba(t.primary, 0.35)}">RIDER</span> <span style="color:${s}">${greeting}</span></div>
+        <div class="mm-rider-row"><span class="mm-label" style="color:${rgba(t.primary, 0.35)}">FUNDS</span> <span style="color:${rgba(t.primary, 0.6)}">${COIN} ${upgrades.funds}</span></div>
       </div>
       <div class="mm-buttons">
         <button class="mm-btn mm-btn-race" data-action="race" style="border-color:${rgba(t.primary, 0.5)};color:${p}">

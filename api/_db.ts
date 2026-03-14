@@ -15,7 +15,9 @@ export async function initDB(): Promise<void> {
       created_at BIGINT NOT NULL,
       last_login BIGINT NOT NULL,
       total_races INTEGER DEFAULT 0,
-      total_laps INTEGER DEFAULT 0
+      total_laps INTEGER DEFAULT 0,
+      achievements_data TEXT DEFAULT '',
+      upgrades_data TEXT DEFAULT ''
     )
   `;
   await sql`
@@ -38,6 +40,10 @@ export async function initDB(): Promise<void> {
       max_air_time REAL DEFAULT 0
     )
   `;
+  // Add columns for progress persistence (safe to run if they already exist)
+  try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS achievements_data TEXT DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS upgrades_data TEXT DEFAULT ''`; } catch {}
+
   // Create indexes if they don't exist
   await sql`CREATE INDEX IF NOT EXISTS idx_lap_records_track_time ON lap_records(track_name, lap_time ASC)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_lap_records_user ON lap_records(user_id, track_name)`;

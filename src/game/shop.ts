@@ -62,7 +62,7 @@ function loadUpgrades(): void {
   } catch {}
 }
 
-function saveUpgrades(): void {
+export function saveUpgrades(): void {
   try {
     localStorage.setItem('mx_upgrades', JSON.stringify({
       funds: upgrades.funds,
@@ -157,6 +157,43 @@ export function buyColor(idx: number): boolean {
   return true;
 }
 
+export function mergeServerUpgrades(serverDataStr: string): void {
+  if (!serverDataStr) return;
+  try {
+    const data = JSON.parse(serverDataStr);
+    // Take the maximum funds (don't lose money)
+    upgrades.funds = Math.max(upgrades.funds, data.funds || 0);
+    // Take the maximum upgrade levels
+    upgrades.tires = Math.max(upgrades.tires, data.tires || 0);
+    upgrades.engine = Math.max(upgrades.engine, data.engine || 0);
+    upgrades.gearbox = Math.max(upgrades.gearbox, data.gearbox || 0);
+    upgrades.suspension = Math.max(upgrades.suspension, data.suspension || 0);
+    // Merge owned colors
+    if (data.ownedColors) for (const c of data.ownedColors) upgrades.ownedColors.add(c);
+    // Take bikeColor from server if it's owned
+    if (data.bikeColor !== undefined && upgrades.ownedColors.has(data.bikeColor)) {
+      upgrades.bikeColor = data.bikeColor;
+    }
+    // Take the max prevUnlocked
+    upgrades.prevUnlocked = Math.max(upgrades.prevUnlocked, data.prevUnlocked || 0);
+    saveUpgrades();
+    applyUpgrades();
+  } catch {}
+}
+
+export function getUpgradeSaveData(): object {
+  return {
+    funds: upgrades.funds,
+    tires: upgrades.tires,
+    engine: upgrades.engine,
+    gearbox: upgrades.gearbox,
+    suspension: upgrades.suspension,
+    bikeColor: upgrades.bikeColor,
+    ownedColors: [...upgrades.ownedColors],
+    prevUnlocked: upgrades.prevUnlocked,
+  };
+}
+
 // ── Shop UI ──
 
 let shopOpen = false;
@@ -194,15 +231,15 @@ export function renderShop(): void {
   const t = T();
 
   const categories = [
-    { key: 'tires' as const, name: 'Tires', desc: ['Stock tires', 'Grip compound', 'Racing slicks', 'Pro grip'] },
-    { key: 'engine' as const, name: 'Engine', desc: ['Stock engine', '250cc bore', '350cc bore', '450cc race'] },
-    { key: 'gearbox' as const, name: 'Gearbox', desc: ['Stock gears', 'Close ratio', 'Racing gears', 'Pro shift'] },
-    { key: 'suspension' as const, name: 'Suspension', desc: ['Stock forks', 'Sport dampers', 'Pro shocks', 'Factory race'] },
+    { key: 'tires' as const, name: 'Tires', desc: ['Stock knobbies', 'Intermediate tread', 'Soft compound', 'Factory grip'] },
+    { key: 'engine' as const, name: 'Engine', desc: ['Stock 250f', '250f ported', '350f bored', '450f race'] },
+    { key: 'gearbox' as const, name: 'Gearbox', desc: ['Stock gears', 'Close ratio', 'Works gears', 'Factory shift'] },
+    { key: 'suspension' as const, name: 'Suspension', desc: ['Stock forks', 'Revalved forks', 'Race-tuned', 'Factory kit'] },
   ];
 
   let html = `<div class="panel-title" style="color:${rgba(t.primary, 0.8)}">SHOP</div>`;
   html += `<div class="panel-close" id="shopClose" style="color:${rgba(t.primary, 0.6)}">×</div>`;
-  html += `<div class="shop-funds"><div class="shop-funds-label">AVAILABLE FUNDS</div><div class="shop-funds-val">⛃ ${upgrades.funds}</div></div>`;
+  html += `<div class="shop-funds"><div class="shop-funds-label">AVAILABLE FUNDS</div><div class="shop-funds-val">◉ ${upgrades.funds}</div></div>`;
 
   for (const cat of categories) {
     const lvl = upgrades[cat.key];
@@ -220,7 +257,7 @@ export function renderShop(): void {
     }
     html += `</div></div>`;
     if (lvl < 3) {
-      html += `<div class="shop-buy-btn${canBuy ? '' : ' owned'}" data-upgrade="${cat.key}">⛃ ${nextCost}</div>`;
+      html += `<div class="shop-buy-btn${canBuy ? '' : ' owned'}" data-upgrade="${cat.key}">◉ ${nextCost}</div>`;
     } else {
       html += `<div class="shop-buy-btn owned">MAX</div>`;
     }
