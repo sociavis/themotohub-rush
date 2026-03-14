@@ -4,6 +4,7 @@ import { achState, ACH_DEFS, getDiffColor } from '../game/achievements';
 import { upgrades, BIKE_COLORS, buyUpgrade, buyColor, checkAchievementFunds, ACHIEVEMENT_REWARD } from '../game/shop';
 import { MX_TRACKS } from '../game/tracks';
 import { fmtMXTime } from '../game/stats';
+import { getWRForTrack } from '../game/leaderboard';
 import { initBikePreview, destroyBikePreview, highlightPart, previewBikeColor, refreshPreviewBike } from './bike-preview';
 
 const COIN = '⛃';
@@ -259,6 +260,28 @@ function renderFullProfile(el: HTMLElement): void {
       <span style="color:rgba(255,255,255,0.7)">${bikeCol.name}</span>
     </div>
   </div>`;
+
+  // World Records
+  if (loggedIn && user) {
+    const wrTracks: { name: string; time: number }[] = [];
+    for (const tr of MX_TRACKS) {
+      const wr = getWRForTrack(tr.name);
+      if (wr && wr.username === user.username) {
+        wrTracks.push({ name: tr.name, time: wr.lapTime });
+      }
+    }
+    if (wrTracks.length > 0) {
+      html += `<div class="profile-section">
+        <div class="profile-section-title" style="color:rgba(255,215,0,0.7)">♛ WORLD RECORDS</div>`;
+      for (const wr of wrTracks) {
+        html += `<div class="profile-wr-row">
+          <span class="profile-wr-track">${wr.name}</span>
+          <span class="profile-wr-time" style="color:rgba(255,215,0,0.9)">${fmtMXTime(wr.time)}</span>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+  }
 
   html += `</div>`;
   el.innerHTML = html;

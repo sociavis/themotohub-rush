@@ -51,7 +51,47 @@ export function getDiffColor(diff: string): [number, number, number] {
 const achTray = document.getElementById('achTray')!;
 let activePopup: HTMLElement | null = null;
 
+// ── Persistence ──
+function saveAchState(): void {
+  try {
+    localStorage.setItem('mx_achstate', JSON.stringify({
+      unlocked: [...achState.unlocked],
+      mxRacesCompleted: achState.mxRacesCompleted,
+      mxLaps: achState.mxLaps,
+      mxMaxAir: achState.mxMaxAir,
+      mxBestTime: achState.mxBestTime,
+      mxCleanLaps: achState.mxCleanLaps,
+      mxTracksCompleted: achState.mxTracksCompleted,
+      mxBermHits: achState.mxBermHits,
+    }));
+  } catch {}
+}
+
+export function loadAchState(): void {
+  try {
+    const saved = localStorage.getItem('mx_achstate');
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data.unlocked) for (const id of data.unlocked) achState.unlocked.add(id);
+      if (data.mxRacesCompleted) achState.mxRacesCompleted = Math.max(achState.mxRacesCompleted, data.mxRacesCompleted);
+      if (data.mxLaps) achState.mxLaps = Math.max(achState.mxLaps, data.mxLaps);
+      if (data.mxMaxAir) achState.mxMaxAir = Math.max(achState.mxMaxAir, data.mxMaxAir);
+      if (data.mxBestTime) achState.mxBestTime = data.mxBestTime > 0 ? (achState.mxBestTime > 0 ? Math.min(achState.mxBestTime, data.mxBestTime) : data.mxBestTime) : achState.mxBestTime;
+      if (data.mxCleanLaps) achState.mxCleanLaps = Math.max(achState.mxCleanLaps, data.mxCleanLaps);
+      if (data.mxTracksCompleted) achState.mxTracksCompleted = Math.max(achState.mxTracksCompleted, data.mxTracksCompleted);
+      if (data.mxBermHits) achState.mxBermHits = Math.max(achState.mxBermHits, data.mxBermHits);
+      // Re-add badges for previously unlocked achievements (without toast)
+      for (const a of ACH_DEFS) {
+        if (achState.unlocked.has(a.id)) addBadge(a);
+      }
+    }
+  } catch {}
+}
+
+let lastSaveTime = 0;
+
 export function checkAch(): void {
+  let newUnlock = false;
   for (const a of ACH_DEFS) {
     if (achState.unlocked.has(a.id)) continue;
     if (a.check()) {
@@ -59,7 +99,14 @@ export function checkAch(): void {
       a.sec = SECTION_NAMES[0];
       showToast(a);
       addBadge(a);
+      newUnlock = true;
     }
+  }
+  // Save immediately on new unlock, or every 10 seconds for counters
+  const now = Date.now();
+  if (newUnlock || now - lastSaveTime > 10000) {
+    saveAchState();
+    lastSaveTime = now;
   }
 }
 

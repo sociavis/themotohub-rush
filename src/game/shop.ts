@@ -1,5 +1,5 @@
 import { T, rgba, tC } from './themes';
-import { mxBike, frame, seat } from './bike';
+import { mxBike, frame, seat, bikeGroup } from './bike';
 import { achState, ACH_DEFS } from './achievements';
 import type { RGB } from './types';
 import * as THREE from 'three';
@@ -84,13 +84,25 @@ export function applyUpgrades(): void {
   mxBike.accel = 12 + upgrades.gearbox * 2.5;      // 12, 14.5, 17, 19.5
   mxBike.turnSpeed = 3.8 + upgrades.tires * 0.4;   // 3.8, 4.2, 4.6, 5.0
 
-  // Apply bike color
+  // Apply bike color to all body-colored parts
   const col = BIKE_COLORS[upgrades.bikeColor].color;
   const c = new THREE.Color(col[0] / 255, col[1] / 255, col[2] / 255);
-  (frame.material as THREE.MeshStandardMaterial).color = c;
-  (frame.material as THREE.MeshStandardMaterial).emissive = c;
-  (seat.material as THREE.MeshStandardMaterial).color = c;
-  (seat.material as THREE.MeshStandardMaterial).emissive = c;
+  // Color the frame (tank) and seat directly
+  (frame.material as THREE.MeshStandardMaterial).color.copy(c);
+  (frame.material as THREE.MeshStandardMaterial).emissive.copy(c);
+  (seat.material as THREE.MeshStandardMaterial).color.copy(c);
+  (seat.material as THREE.MeshStandardMaterial).emissive.copy(c);
+  // Also color all other body parts that share the same emissiveIntensity=0.7 signature
+  bikeGroup.children.forEach(child => {
+    if (child === frame || child === seat) return;
+    const mesh = child as THREE.Mesh;
+    if (!mesh.material) return;
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    if (mat.emissiveIntensity === 0.7 && mat.metalness === 0.7) {
+      mat.color.copy(c);
+      mat.emissive.copy(c);
+    }
+  });
 }
 
 // Get suspension bonus (reduces landing penalty, improves bump handling)

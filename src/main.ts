@@ -12,7 +12,7 @@ import {
   updateDustTrail, updateTireTrail, updateRoostParticles, updateAmbientParticles,
 } from './game/track-builder';
 import { MX_TRACKS, TRACK_W, MX_CHECKPOINTS } from './game/tracks';
-import { achState, checkAch, showWRToast } from './game/achievements';
+import { achState, checkAch, showWRToast, loadAchState } from './game/achievements';
 import { tickFPS, fps, updateHUD } from './game/hud';
 import { globalStats, fetchGlobalStats, pushSessionStats, reportVisit, fmtMXTime, initStatsListeners, STATS_API, _mxRacesPushedLive, incrementMxRacesPushedLive } from './game/stats';
 import { applyTheme } from './ui/theme-ui';
@@ -589,6 +589,7 @@ function init(): void {
   initContact();
   initSoundToggle();
   initStatsListeners(mxTimer);
+  loadAchState();
   initShop();
   initLeaderboardUI();
   initProfileUI();
