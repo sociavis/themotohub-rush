@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { sql, initDB } from '../_db';
+import { sql, initDB } from '../_db.js';
 
 const SALT_ROUNDS = 10;
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000;

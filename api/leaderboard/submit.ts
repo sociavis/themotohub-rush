@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql, initDB } from '../_db';
-import { getUserFromRequest } from '../_auth';
+import { sql, initDB } from '../_db.js';
+import { getUserFromRequest } from '../_auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
