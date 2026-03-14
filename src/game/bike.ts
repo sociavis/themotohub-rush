@@ -7,6 +7,7 @@ export const mxBike: BikeState = {
   t: 0, lat: 0, speed: 0, maxSpeed: 16, accel: 12, brake: 8,
   turnSpeed: 3.8, angle: 0, airborne: false, jumpVel: 0, hOff: 0,
   lean: 0, driftFactor: 0, pos: new THREE.Vector3(), suspBob: 0,
+  wheelie: false, wheelieBalance: 0, wheelieTime: 0,
 };
 
 // ── Bike Model ──
@@ -67,4 +68,5 @@ export function resetBike(): void {
   mxBike.t = 0; mxBike.lat = 0; mxBike.speed = 0; mxBike.angle = 0;
   mxBike.airborne = false; mxBike.jumpVel = 0; mxBike.hOff = 0;
   mxBike.lean = 0; mxBike.driftFactor = 0; mxBike.suspBob = 0;
+  mxBike.wheelie = false; mxBike.wheelieBalance = 0; mxBike.wheelieTime = 0;
 }

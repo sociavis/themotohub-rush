@@ -4,11 +4,11 @@ import type { RGB } from './types';
 import { scene } from './renderer';
 
 // ── Main Particle System ──
-export const MAXP = 800;
+export const MAXP = 1200;
 const pGeo = new THREE.BufferGeometry();
-const pPos = new Float32Array(MAXP * 3);
-const pCol = new Float32Array(MAXP * 3);
-const pSz = new Float32Array(MAXP);
+const pPos = new Float32Array(1200 * 3);
+const pCol = new Float32Array(1200 * 3);
+const pSz = new Float32Array(1200);
 pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
 pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
 pGeo.setAttribute('size', new THREE.BufferAttribute(pSz, 1));

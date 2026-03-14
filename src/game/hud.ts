@@ -1,6 +1,8 @@
 import type { BikeState, MXTimer } from './types';
 import { MX_TRACKS } from './tracks';
 import { fmtMXTime, globalStats } from './stats';
+import { getWRForTrack } from './leaderboard';
+import { isLoggedIn, getUser } from './auth';
 
 function el(id: string, v: string): void {
   document.getElementById(id)!.textContent = v;
@@ -41,13 +43,15 @@ export function updateHUD(
   el('hud-d1', fps + ' FPS');
   el('hud-d2', 'LAP ' + (mxTimer.lap + 1) + '/' + mxTimer.laps);
 
+  const serverWR = getWRForTrack(trk.name);
   const globalWR = globalStats['wr_' + trk.name];
   const localBest = mxTimer.bestLapTimes[bestKey];
-  const wrTime = globalWR && globalWR > 0 ? (localBest && localBest < globalWR ? localBest : globalWR) : (localBest || 0);
+  const wrTime = serverWR ? serverWR.lapTime : (globalWR && globalWR > 0 ? (localBest && localBest < globalWR ? localBest : globalWR) : (localBest || 0));
   const wrStr = wrTime > 0 ? fmtMXTime(wrTime) : '--:--.--';
+  const wrHolder = serverWR ? serverWR.displayName : '';
   el('hud-l2', 'Track');
-  el('hud-v2', trk.name + ' ' + (mxTrackIdx + 1) + '/3');
-  el('hud-d3', 'WR: ' + wrStr);
+  el('hud-v2', trk.name + ' ' + (mxTrackIdx + 1) + '/' + MX_TRACKS.length);
+  el('hud-d3', 'WR: ' + wrStr + (wrHolder ? ' — ' + wrHolder : ''));
 
   el('hud-l3', 'Lap');
   el('hud-v3', lapTimeStr);

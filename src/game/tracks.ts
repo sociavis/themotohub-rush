@@ -53,6 +53,65 @@ export const MX_TRACKS: TrackDef[] = [
       { type: 'berm', at: 0.88, side: -1 },
     ],
   },
+  {
+    name: 'VOLCANIC RIDGE',
+    envColor: [255, 60, 20],
+    envType: 'volcanic',
+    pts: [
+      [0, 0], [14, 8], [30, 14], [48, 10], [58, 0],
+      [62, -16], [52, -28], [36, -34], [18, -30], [6, -20], [-2, -8],
+    ],
+    obs: [
+      { type: 'hill', at: 0.07, h: 3.0, len: 0.15 },
+      { type: 'berm', at: 0.20, side: 1 },
+      { type: 'hill', at: 0.34, h: 2.4, len: 0.14 },
+      { type: 'berm', at: 0.48, side: -1 },
+      { type: 'hill', at: 0.60, h: 3.2, len: 0.16 },
+      { type: 'berm', at: 0.75, side: 1 },
+      { type: 'hill', at: 0.88, h: 2.0, len: 0.12 },
+    ],
+  },
+  {
+    name: 'RAINFOREST',
+    envColor: [30, 200, 80],
+    envType: 'jungle',
+    pts: [
+      [0, 0], [10, 8], [24, 16], [40, 18], [54, 12],
+      [62, 0], [58, -14], [44, -24], [28, -28], [14, -24],
+      [4, -16], [-6, -6],
+    ],
+    obs: [
+      { type: 'hill', at: 0.06, h: 2.2, len: 0.13 },
+      { type: 'berm', at: 0.16, side: -1 },
+      { type: 'hill', at: 0.28, h: 2.6, len: 0.14 },
+      { type: 'berm', at: 0.38, side: 1 },
+      { type: 'hill', at: 0.50, h: 1.8, len: 0.11 },
+      { type: 'berm', at: 0.62, side: -1 },
+      { type: 'hill', at: 0.74, h: 2.4, len: 0.13 },
+      { type: 'berm', at: 0.86, side: 1 },
+    ],
+  },
+  {
+    name: 'MIDNIGHT STADIUM',
+    envColor: [180, 100, 255],
+    envType: 'stadium',
+    pts: [
+      [0, 0], [18, 6], [36, 10], [52, 6], [60, -4],
+      [56, -18], [44, -26], [28, -30], [12, -26],
+      [0, -18], [-8, -8],
+    ],
+    obs: [
+      { type: 'hill', at: 0.05, h: 2.8, len: 0.14 },
+      { type: 'berm', at: 0.14, side: 1 },
+      { type: 'hill', at: 0.24, h: 2.2, len: 0.12 },
+      { type: 'hill', at: 0.36, h: 3.0, len: 0.15 },
+      { type: 'berm', at: 0.48, side: -1 },
+      { type: 'hill', at: 0.58, h: 2.4, len: 0.13 },
+      { type: 'berm', at: 0.68, side: 1 },
+      { type: 'hill', at: 0.78, h: 2.6, len: 0.14 },
+      { type: 'berm', at: 0.90, side: -1 },
+    ],
+  },
 ];
 
 export const TRACK_W = 3;

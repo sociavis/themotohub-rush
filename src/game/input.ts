@@ -8,6 +8,7 @@ export const I: InputState = {
   vel: 0, px: 0, py: 0,
   mx: 0, mz: 0,
   crx: innerWidth / 2, cry: innerHeight / 2,
+  space: false,
 };
 
 export const mob = matchMedia('(pointer:coarse)').matches;
@@ -30,7 +31,7 @@ export function isUI(el: Element | null): boolean {
     el.closest('.globe-btn') || el.closest('.stats-panel') ||
     el.closest('.ach-badge') || el.closest('.ach-popup') ||
     el.closest('.sound-btn') || el.closest('.contact-btn') ||
-    el.closest('.contact-overlay')
+    el.closest('.contact-overlay') || el.closest('.welcome-screen')
   );
 }
 
@@ -97,6 +98,24 @@ export function setupInputListeners(
     if (I.down && I.holdTime > 0.2) onRelease();
     I.down = false; I.holdTime = 0;
   });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); I.space = true; }
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') { I.space = false; }
+  });
+
+  // Mobile wheelie button
+  const wheelieBtn = document.getElementById('wheelieBtn');
+  if (wheelieBtn) {
+    wheelieBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); I.space = true; wheelieBtn.classList.add('active');
+    }, { passive: false });
+    wheelieBtn.addEventListener('touchend', () => {
+      I.space = false; wheelieBtn.classList.remove('active');
+    });
+  }
 }
 
 import * as THREE from 'three';

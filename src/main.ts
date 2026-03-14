@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { lerp, dst, T } from './game/themes';
 import { R, scene, camera, cam, camTargets, gridMat, gridBaseOpacity, ptL, ptL2, grid, warpGrid } from './game/renderer';
 import { I, mob, setupInputListeners, updateMouse3D, getCursorRing } from './game/input';
-import { isSoundOn, sndClick, sndShockwave, sndSectionChange, sndAchievement, sndCheckpoint, sndLanding, sndJump, startEngine, updateEngine, stopEngine } from './game/audio';
+import { isSoundOn, sndClick, sndShockwave, sndSectionChange, sndAchievement, sndCheckpoint, sndLanding, sndJump, sndWheelie, sndWheelieEnd, sndSkid, startEngine, updateEngine, stopEngine } from './game/audio';
 import { parts, Pt, MAXP, syncParticles, shocks, mkShock } from './game/particles';
 import { mxBike, bikeGroup, resetBike, frame, fWheelGroup, rWheelGroup } from './game/bike';
 import {
@@ -20,6 +20,8 @@ import { initContact } from './ui/contact';
 import { startLoading } from './ui/loading';
 import { initSoundToggle } from './game/sound-toggle';
 import type { MXTimer } from './game/types';
+import { isLoggedIn, updateBestTime } from './game/auth';
+import { submitLapTime, fetchLeaderboard, fetchWorldRecord, getWRForTrack } from './game/leaderboard';
 
 // ── Game State ──
 let mxGameActive = false;
@@ -52,6 +54,10 @@ function sectionEnter(): void {
   setVis();
   grid.visible = true;
   if (isSoundOn()) startEngine();
+  // Fetch leaderboard for current track
+  const trackName = MX_TRACKS[mxTrackIdx].name;
+  fetchLeaderboard(trackName);
+  fetchWorldRecord(trackName);
 }
 
 function sectionClick(): void {
@@ -74,7 +80,7 @@ function sectionRelease(): void {
 }
 
 // ── Hints ──
-const HINTS = [mob ? '[ Tap and hold to race — Slide to steer ]' : '[ Click and hold to race — Move cursor to steer ]'];
+const HINTS = [mob ? '[ Tap and hold to race — Slide to steer — Wheelie button to pop ]' : '[ Click and hold to race — Move cursor to steer — Space for wheelie ]'];
 const hintEl = document.getElementById('hintLine')!;
 
 function cycleHint(): void {
@@ -121,17 +127,64 @@ function updateMX(t: number): void {
   }
   mxBike.lean = lerp(mxBike.lean, (mxBike.lat + mxBike.driftFactor * 0.5) * -0.5, 0.18);
 
+  // Terrain friction based on environment type
+  const trk = MX_TRACKS[mxTrackIdx];
+  let terrainFriction = 1.0;
+  if (trk.envType === 'ice') terrainFriction = 0.85;
+  else if (trk.envType === 'jungle') terrainFriction = 0.93;
+  else if (trk.envType === 'volcanic') terrainFriction = 0.95;
+
+  // Cornering speed loss
+  const corneringLoss = 1 - Math.abs(mxBike.driftFactor) * 0.04;
+
   // Speed
   if (mxAccel && mxTimer.running) {
     const targetSpeed = mxBike.maxSpeed;
     const ratio = mxBike.speed / targetSpeed;
     const launchBoost = mxBike.speed < 4 ? 2.5 : 1;
-    const accelF = (1 - ratio * ratio) * mxBike.accel * dt * 0.15 * launchBoost;
+    const accelF = (1 - ratio * ratio) * mxBike.accel * dt * 0.15 * launchBoost * terrainFriction;
     mxBike.speed = Math.min(mxBike.speed + accelF, targetSpeed);
+    mxBike.speed *= corneringLoss;
   } else if (mxTimer.running) {
-    mxBike.speed = lerp(mxBike.speed, mxBike.maxSpeed * 0.25, 0.015);
+    // Progressive braking — coast speed depends on how long not accelerating
+    const coastTarget = mxBike.maxSpeed * 0.25 * terrainFriction;
+    mxBike.speed = lerp(mxBike.speed, coastTarget, 0.018);
+    mxBike.speed *= corneringLoss;
   } else {
-    mxBike.speed = lerp(mxBike.speed, 0, mxBike.brake * dt * 0.05);
+    mxBike.speed = lerp(mxBike.speed, 0, mxBike.brake * dt * 0.06);
+  }
+
+  // Wheelie mechanics
+  if (I.space && mxTimer.running && !mxBike.airborne && mxBike.speed > 3) {
+    if (!mxBike.wheelie) {
+      mxBike.wheelie = true;
+      mxBike.wheelieBalance = 0;
+      mxBike.wheelieTime = 0;
+      if (isSoundOn()) sndWheelie();
+    }
+    mxBike.wheelieTime += dt;
+    // Balance drifts — player must keep cursor centered or use subtle steering
+    const balanceDrift = (Math.random() - 0.5) * 1.8 * dt;
+    const steerCorrection = -mxBike.lat * 0.5 * dt;
+    mxBike.wheelieBalance += balanceDrift + steerCorrection;
+    mxBike.wheelieBalance = Math.max(-1, Math.min(1, mxBike.wheelieBalance));
+    // Speed bonus while wheeling
+    mxBike.speed = Math.min(mxBike.speed * (1 + 0.003 * dt * 60), mxBike.maxSpeed * 1.15);
+    // Turning penalty
+    mxBike.lat *= 0.97;
+    // Bail if balance is too far off
+    if (Math.abs(mxBike.wheelieBalance) > 0.9) {
+      mxBike.wheelie = false;
+      mxBike.speed *= 0.7; // speed penalty for bailing
+      mxBike.wheelieBalance = 0;
+      if (isSoundOn()) sndWheelieEnd();
+    }
+    // Track achievement
+    if (mxBike.wheelieTime > (achState.mxMaxAir || 0)) achState.mxMaxAir = mxBike.wheelieTime;
+  } else if (mxBike.wheelie) {
+    mxBike.wheelie = false;
+    mxBike.wheelieBalance = 0;
+    if (isSoundOn()) sndWheelieEnd();
   }
 
   // Off-track penalty
@@ -163,6 +216,13 @@ function updateMX(t: number): void {
           fetch(STATS_API + '?action=push', { method: 'POST', body: JSON.stringify(wrPush) })
             .then(() => fetchGlobalStats()).catch(() => {});
           showWRToast(tn, lapTime, isGlobalWR, fmtMXTime);
+          // Update user best time in auth system
+          updateBestTime(tn, lapTime);
+        }
+
+        // Submit lap time to server leaderboard if logged in
+        if (isLoggedIn()) {
+          submitLapTime(tn, lapTime, mxTimer.clean, mxTimer.maxAir, mxTimer.laps);
         }
 
         mxTimer.lap++; mxTimer.cpsHit.clear(); sndSectionChange();
@@ -183,14 +243,19 @@ function updateMX(t: number): void {
           for (const tr of MX_TRACKS) if (!mxTimer.bestLapTimes[tr.name]) allDone = false;
           if (allDone) achState.mxTracksCompleted = MX_TRACKS.length;
 
-          for (let i = 0; i < 30 && parts.length < MAXP; i++) {
-            const a = Math.random() * Math.PI * 2; const sp = Math.random() * 0.6 + 0.2;
-            parts.push(new Pt(mxBike.pos.x, 1.5, mxBike.pos.z, Math.cos(a) * sp, Math.random() * 0.8, Math.sin(a) * sp, Math.random() > 0.5 ? T().primary : T().secondary, 3 + Math.random() * 3, 0.2 + Math.random() * 0.3));
+          for (let i = 0; i < 50 && parts.length < MAXP; i++) {
+            const a = Math.random() * Math.PI * 2; const sp = Math.random() * 0.8 + 0.2;
+            const colors = [T().primary, T().secondary, T().accent];
+            const c = colors[Math.floor(Math.random() * colors.length)];
+            parts.push(new Pt(mxBike.pos.x, 1.5 + Math.random(), mxBike.pos.z, Math.cos(a) * sp, Math.random() * 1.0 + 0.2, Math.sin(a) * sp, c, 3 + Math.random() * 4, 0.15 + Math.random() * 0.35));
           }
           sndAchievement();
           setTimeout(() => {
             if (mxGameActive) {
               nextTrack(); buildTrack(); resetMX(); setVis();
+              const nextName = MX_TRACKS[mxTrackIdx].name;
+              fetchLeaderboard(nextName);
+              fetchWorldRecord(nextName);
             }
           }, 2500);
         }
@@ -213,8 +278,13 @@ function updateMX(t: number): void {
   const trackH = getTrackHeight(mxBike.t);
   if (!mxBike.airborne) {
     const nextH = getTrackHeight(Math.min(mxBike.t + 0.008, 0.999));
+    const slope = (trackH - nextH) / 0.008; // slope steepness
     if (trackH > 0.3 && nextH < trackH - 0.08 && mxBike.speed > 4) {
-      mxBike.airborne = true; mxBike.jumpVel = mxBike.speed * 0.22; mxBike.hOff = trackH; sndJump();
+      mxBike.airborne = true;
+      // Slope-based jump velocity — steeper slopes = bigger air
+      const slopeFactor = Math.min(slope * 0.15, 1.5);
+      mxBike.jumpVel = mxBike.speed * (0.18 + slopeFactor * 0.08);
+      mxBike.hOff = trackH; sndJump();
     } else {
       mxBike.hOff = trackH;
     }
@@ -224,11 +294,23 @@ function updateMX(t: number): void {
     if (mxTimer.airTime > achState.mxMaxAir) achState.mxMaxAir = mxTimer.airTime;
     if (mxBike.hOff <= trackH) {
       mxBike.hOff = trackH; mxBike.airborne = false;
-      mxBike.speed = Math.min(mxBike.speed * 1.05, mxBike.maxSpeed * 1.1);
+      // Landing impact — smooth landings give speed boost, hard landings penalize
+      const impactVel = Math.abs(mxBike.jumpVel);
+      if (impactVel < 2) {
+        mxBike.speed = Math.min(mxBike.speed * 1.08, mxBike.maxSpeed * 1.12); // smooth landing boost
+      } else if (impactVel > 4) {
+        mxBike.speed *= 0.92; // hard landing penalty
+      } else {
+        mxBike.speed = Math.min(mxBike.speed * 1.03, mxBike.maxSpeed * 1.08);
+      }
       mxBike.jumpVel = 0; sndLanding(); mxTimer.airTime = 0;
-      for (let i = 0; i < 8 && parts.length < MAXP; i++) {
+      // End wheelie on landing
+      if (mxBike.wheelie) { mxBike.wheelie = false; mxBike.wheelieBalance = 0; }
+      const landingParts = impactVel > 3 ? 12 : 8;
+      for (let i = 0; i < landingParts && parts.length < MAXP; i++) {
         const a = Math.random() * Math.PI * 2;
-        parts.push(new Pt(mxBike.pos.x, 0.1, mxBike.pos.z, Math.cos(a) * 0.3, Math.random() * 0.15, Math.sin(a) * 0.3, T().primary, 1.2 + Math.random(), 0.1));
+        const sp = 0.2 + impactVel * 0.08;
+        parts.push(new Pt(mxBike.pos.x, 0.1, mxBike.pos.z, Math.cos(a) * sp, Math.random() * 0.2 + impactVel * 0.04, Math.sin(a) * sp, T().primary, 1.2 + Math.random(), 0.1 + impactVel * 0.02));
       }
     }
   }
@@ -249,12 +331,40 @@ function updateMX(t: number): void {
   bikeGroup.position.copy(mxBike.pos);
   bikeGroup.rotation.y = mxBike.angle;
   bikeGroup.rotation.z = mxBike.lean * 0.45;
-  const tiltTarget = mxBike.airborne ? -0.25 : (mxAccel ? 0.08 : -0.03);
-  bikeGroup.rotation.x = lerp(bikeGroup.rotation.x || 0, tiltTarget, 0.1);
+  const tiltTarget = mxBike.wheelie ? -0.55 : mxBike.airborne ? -0.25 : (mxAccel ? 0.08 : -0.03);
+  bikeGroup.rotation.x = lerp(bikeGroup.rotation.x || 0, tiltTarget, mxBike.wheelie ? 0.15 : 0.1);
 
   // Wheel spin
   fWheelGroup.rotation.x += mxBike.speed * dt * 4;
   rWheelGroup.rotation.x += mxBike.speed * dt * 4;
+
+  // Wheelie particles
+  if (mxBike.wheelie && mxBike.speed > 4 && parts.length < MAXP) {
+    // Sparks from rear wheel
+    const sparkChance = 0.4 + mxBike.speed * 0.03;
+    if (Math.random() < sparkChance) {
+      const a = Math.random() * Math.PI * 2;
+      parts.push(new Pt(
+        mxBike.pos.x - curTan.x * 0.4, 0.05, mxBike.pos.z - curTan.z * 0.4,
+        Math.cos(a) * 0.15, Math.random() * 0.3, Math.sin(a) * 0.15,
+        T().secondary, 0.6 + Math.random() * 0.4, 0.06 + Math.random() * 0.04,
+      ));
+    }
+  }
+
+  // Skid sound + tire smoke at high speeds with heavy cornering
+  if (!mxBike.airborne && mxBike.speed > 10 && Math.abs(mxBike.driftFactor) > 0.4 && isSoundOn() && Math.random() < 0.05) {
+    sndSkid();
+  }
+  if (!mxBike.airborne && mxBike.speed > 8 && Math.abs(mxBike.driftFactor) > 0.3 && parts.length < MAXP) {
+    if (Math.random() < 0.5) {
+      parts.push(new Pt(
+        mxBike.pos.x - curTan.x * 0.3, 0.1, mxBike.pos.z - curTan.z * 0.3,
+        (Math.random() - 0.5) * 0.1, Math.random() * 0.08, (Math.random() - 0.5) * 0.1,
+        [180, 180, 180], 1.5 + Math.random(), 0.15 + Math.random() * 0.1,
+      ));
+    }
+  }
 
   // Visual updates
   const bikeGrounded = !mxBike.airborne && mxBike.hOff - trackH < 0.15;
@@ -270,27 +380,13 @@ function updateMX(t: number): void {
 }
 
 // ── Initialize ──
-function init(): void {
-  startLoading();
-  initContact();
-  initSoundToggle();
-  initStatsListeners(mxTimer);
-  reportVisit();
-  fetchGlobalStats();
-  setInterval(() => fetchGlobalStats(), 15000);
-
-  window.addEventListener('beforeunload', () => pushSessionStats(mxTimer));
-  window.addEventListener('pagehide', () => pushSessionStats(mxTimer));
-
-  setupInputListeners(applyTheme, () => {}, sectionClick, sectionRelease);
+function startGame(): void {
+  sectionEnter();
 
   setTimeout(() => {
     hintEl.textContent = HINTS[0]; hintEl.classList.add('visible');
     setTimeout(() => { hintEl.classList.remove('visible'); setTimeout(cycleHint, 4000); }, 2500);
   }, 1500);
-
-  sectionEnter();
-  applyTheme(0);
 
   const t0 = performance.now();
   const cr = getCursorRing();
@@ -346,6 +442,24 @@ function init(): void {
     R.render(scene, camera);
   }
   animate();
+}
+
+function init(): void {
+  initContact();
+  initSoundToggle();
+  initStatsListeners(mxTimer);
+  reportVisit();
+  fetchGlobalStats();
+  setInterval(() => fetchGlobalStats(), 15000);
+
+  window.addEventListener('beforeunload', () => pushSessionStats(mxTimer));
+  window.addEventListener('pagehide', () => pushSessionStats(mxTimer));
+
+  setupInputListeners(applyTheme, () => {}, sectionClick, sectionRelease);
+  applyTheme(0);
+
+  // Loading screen → welcome screen → game start
+  startLoading(startGame);
 }
 
 init();

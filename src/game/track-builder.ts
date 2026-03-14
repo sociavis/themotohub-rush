@@ -47,10 +47,10 @@ export const tireTrail: { x: number; y: number; z: number }[] = [];
 
 // ── MX Ambient Particles ──
 export const mxAmbientParts: { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; ml: number }[] = [];
-export const MX_AMB_MAX = 40;
+export const MX_AMB_MAX = 60;
 const mxAmbGeo = new THREE.BufferGeometry();
-const mxAmbPos = new Float32Array(MX_AMB_MAX * 3);
-const mxAmbSz = new Float32Array(MX_AMB_MAX);
+const mxAmbPos = new Float32Array(60 * 3);
+const mxAmbSz = new Float32Array(60);
 mxAmbGeo.setAttribute('position', new THREE.BufferAttribute(mxAmbPos, 3));
 mxAmbGeo.setAttribute('size', new THREE.BufferAttribute(mxAmbSz, 1));
 export const mxAmbMat = new THREE.PointsMaterial({ color: 0xffffff, transparent: true, opacity: 0.25, size: 0.15, sizeAttenuation: true });
@@ -60,10 +60,10 @@ s4.add(mxAmbPoints);
 
 // ── Roost Particles ──
 export const mxRoostParts: { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; ml: number }[] = [];
-export const MX_ROOST_MAX = 50;
+export const MX_ROOST_MAX = 70;
 const mxRoostGeo = new THREE.BufferGeometry();
-const mxRoostPos = new Float32Array(MX_ROOST_MAX * 3);
-const mxRoostSz = new Float32Array(MX_ROOST_MAX);
+const mxRoostPos = new Float32Array(70 * 3);
+const mxRoostSz = new Float32Array(70);
 mxRoostGeo.setAttribute('position', new THREE.BufferAttribute(mxRoostPos, 3));
 mxRoostGeo.setAttribute('size', new THREE.BufferAttribute(mxRoostSz, 1));
 export const mxRoostMat = new THREE.PointsMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, size: 0.2, sizeAttenuation: true });
@@ -395,6 +395,128 @@ function buildEnvironment(trk: TrackDef): void {
       const tLight = new THREE.PointLight(new THREE.Color(envC[0] / 255, envC[1] / 255, envC[2] / 255), 2, 15);
       tLight.position.set(towerX, towerH - 0.5, towerZ); s4.add(tLight); mxTrackMeshes.push(tLight as any);
     }
+  } else if (trk.envType === 'volcanic') {
+    // Jagged rock formations
+    for (let i = 0; i < 18; i++) {
+      const ang = Math.random() * Math.PI * 2, dist = 26 + Math.random() * 20;
+      const rh = 1.5 + Math.random() * 4, rr = 0.3 + Math.random() * 0.8;
+      const rock = new THREE.Mesh(new THREE.ConeGeometry(rr, rh, 5 + Math.floor(Math.random() * 3)),
+        new THREE.MeshStandardMaterial({ color: tC([60, 25, 15]), emissive: tC([255, 40, 10]), emissiveIntensity: 0.08, transparent: true, opacity: 0.6, roughness: 0.95 }));
+      rock.position.set(Math.cos(ang) * dist, rh / 2, Math.sin(ang) * dist); rock.rotation.y = Math.random() * Math.PI;
+      s4.add(rock); mxTrackMeshes.push(rock);
+    }
+    // Lava pools (glowing flat circles)
+    for (let i = 0; i < 8; i++) {
+      const ang = Math.random() * Math.PI * 2, dist = 30 + Math.random() * 16;
+      const poolR = 1 + Math.random() * 2.5;
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(poolR, 16),
+        new THREE.MeshBasicMaterial({ color: tC([255, 80, 10]), transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
+      pool.rotation.x = -Math.PI / 2; pool.position.set(Math.cos(ang) * dist, 0.03, Math.sin(ang) * dist);
+      s4.add(pool); mxTrackMeshes.push(pool);
+      const glow = new THREE.PointLight(new THREE.Color(1, 0.2, 0.02), 1.2, 8);
+      glow.position.set(Math.cos(ang) * dist, 0.5, Math.sin(ang) * dist); s4.add(glow); mxTrackMeshes.push(glow as any);
+    }
+    // Scattered boulders
+    for (let i = 0; i < 20; i++) {
+      const ang = Math.random() * Math.PI * 2, dist = i < 6 ? (5 + Math.random() * 4) : (22 + Math.random() * 24);
+      const sz = 0.15 + Math.random() * 0.5;
+      const boulder = new THREE.Mesh(new THREE.IcosahedronGeometry(sz, 0),
+        new THREE.MeshStandardMaterial({ color: tC([80, 35, 20]), emissive: tC(envC), emissiveIntensity: 0.05, transparent: true, opacity: 0.5, roughness: 0.9 }));
+      boulder.position.set(Math.cos(ang) * dist, sz * 0.4, Math.sin(ang) * dist);
+      boulder.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      s4.add(boulder); mxTrackMeshes.push(boulder);
+    }
+    // Smoke columns
+    for (let i = 0; i < 6; i++) {
+      const ang = Math.random() * Math.PI * 2, dist = 32 + Math.random() * 14;
+      const colH = 4 + Math.random() * 6;
+      const smoke = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.15, colH, 8),
+        new THREE.MeshBasicMaterial({ color: tC([80, 40, 20]), transparent: true, opacity: 0.08 }));
+      smoke.position.set(Math.cos(ang) * dist, colH / 2, Math.sin(ang) * dist);
+      s4.add(smoke); mxTrackMeshes.push(smoke);
+    }
+  } else if (trk.envType === 'jungle') {
+    // Dense trees
+    for (let i = 0; i < 24; i++) {
+      const ang = Math.random() * Math.PI * 2, dist = 22 + Math.random() * 22;
+      const x = Math.cos(ang) * dist, z = Math.sin(ang) * dist;
+      const trunkH = 3 + Math.random() * 4;
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, trunkH, 7),
+        new THREE.MeshStandardMaterial({ color: tC([65, 40, 20]), emissive: tC([30, 60, 20]), emissiveIntensity: 0.05, transparent: true, opacity: 0.55, roughness: 0.9 }));
+      trunk.position.set(x, trunkH / 2, z); s4.add(trunk); mxTrackMeshes.push(trunk);
+      // Canopy
+      const canopyR = 1.5 + Math.random() * 2;
+      const canopy = new THREE.Mesh(new THREE.SphereGeometry(canopyR, 8, 6),
+        new THREE.MeshStandardMaterial({ color: tC([20 + Math.floor(Math.random() * 30), 140 + Math.floor(Math.random() * 60), 30 + Math.floor(Math.random() * 30)]), emissive: tC(envC), emissiveIntensity: 0.06, transparent: true, opacity: 0.4, roughness: 0.8 }));
+      canopy.position.set(x, trunkH + canopyR * 0.3, z); s4.add(canopy); mxTrackMeshes.push(canopy);
+    }
+    // Ferns and ground cover
+    for (let i = 0; i < 18; i++) {
+      const ang = Math.random() * Math.PI * 2, dist = i < 6 ? (5 + Math.random() * 4) : (20 + Math.random() * 20);
+      const sz = 0.3 + Math.random() * 0.6;
+      const fern = new THREE.Mesh(new THREE.ConeGeometry(sz, sz * 1.5, 4),
+        new THREE.MeshStandardMaterial({ color: tC([30, 160, 50]), emissive: tC(envC), emissiveIntensity: 0.04, transparent: true, opacity: 0.35, roughness: 0.85 }));
+      fern.position.set(Math.cos(ang) * dist, sz * 0.5, Math.sin(ang) * dist);
+      s4.add(fern); mxTrackMeshes.push(fern);
+    }
+    // Vines (thin cylinders connecting trees)
+    for (let i = 0; i < 8; i++) {
+      const ang = Math.random() * Math.PI * 2, dist = 24 + Math.random() * 16;
+      const vineH = 3 + Math.random() * 4;
+      const vine = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, vineH, 4),
+        new THREE.MeshBasicMaterial({ color: tC([40, 120, 30]), transparent: true, opacity: 0.3 }));
+      vine.position.set(Math.cos(ang) * dist, vineH / 2 + 2, Math.sin(ang) * dist);
+      vine.rotation.z = (Math.random() - 0.5) * 0.5;
+      s4.add(vine); mxTrackMeshes.push(vine);
+    }
+  } else if (trk.envType === 'stadium') {
+    // Stadium stands (tiered boxes)
+    const standCount = 16;
+    for (let i = 0; i < standCount; i++) {
+      const tP = i / standCount;
+      const pt = mxSpline!.getPointAt(tP);
+      const tan = mxSpline!.getTangentAt(tP).normalize();
+      const norm = new THREE.Vector3(-tan.z, 0, tan.x);
+      for (let tier = 0; tier < 3; tier++) {
+        const side = i % 2 === 0 ? 1 : -1;
+        const standDist = TRACK_W * (3 + tier * 1.8);
+        const standH = 1.5 + tier * 1.5;
+        const stand = new THREE.Mesh(new THREE.BoxGeometry(3.2, standH, 1.2),
+          new THREE.MeshStandardMaterial({ color: tC([40, 25, 60]), emissive: tC(envC), emissiveIntensity: 0.06, transparent: true, opacity: 0.4, roughness: 0.7 }));
+        stand.position.set(pt.x + norm.x * standDist * side, standH / 2, pt.z + norm.z * standDist * side);
+        stand.rotation.y = Math.atan2(tan.x, tan.z);
+        s4.add(stand); mxTrackMeshes.push(stand);
+      }
+    }
+    // Floodlights
+    for (let i = 0; i < 8; i++) {
+      const tP = (i + 0.5) / 8;
+      const pt = mxSpline!.getPointAt(tP);
+      const tan = mxSpline!.getTangentAt(tP).normalize();
+      const norm = new THREE.Vector3(-tan.z, 0, tan.x);
+      const side = i % 2 === 0 ? 1 : -1;
+      const towerX = pt.x + norm.x * TRACK_W * 4 * side;
+      const towerZ = pt.z + norm.z * TRACK_W * 4 * side;
+      const towerH = 10 + Math.random() * 3;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, towerH, 6),
+        new THREE.MeshStandardMaterial({ color: tC([80, 60, 100]), emissive: tC(envC), emissiveIntensity: 0.1, transparent: true, opacity: 0.5 }));
+      pole.position.set(towerX, towerH / 2, towerZ); s4.add(pole); mxTrackMeshes.push(pole);
+      const lightHead = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.4),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }));
+      lightHead.position.set(towerX, towerH, towerZ); lightHead.rotation.y = Math.atan2(tan.x, tan.z);
+      s4.add(lightHead); mxTrackMeshes.push(lightHead);
+      const sLight = new THREE.PointLight(new THREE.Color(envC[0] / 255, envC[1] / 255, envC[2] / 255), 3, 20);
+      sLight.position.set(towerX, towerH - 0.5, towerZ); s4.add(sLight); mxTrackMeshes.push(sLight as any);
+    }
+    // Ground grid
+    const gSz = 50, gStep = 5;
+    for (let g = -gSz / 2; g <= gSz / 2; g += gStep) {
+      const gl = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(g, 0.01, -gSz / 2), new THREE.Vector3(g, 0.01, gSz / 2)]),
+        new THREE.LineBasicMaterial({ color: tC(envC), transparent: true, opacity: 0.05 }));
+      const gl2 = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-gSz / 2, 0.01, g), new THREE.Vector3(gSz / 2, 0.01, g)]),
+        new THREE.LineBasicMaterial({ color: tC(envC), transparent: true, opacity: 0.05 }));
+      s4.add(gl); s4.add(gl2); mxTrackMeshes.push(gl); mxTrackMeshes.push(gl2);
+    }
   }
 }
 
@@ -417,6 +539,24 @@ function setAtmosphere(trk: TrackDef): void {
     (scene.fog as THREE.FogExp2).density = 0.005;
     ambL.color.set(new THREE.Color(0.07, 0.05, 0.1)); ambL.intensity = 0.3;
     dirL.color.set(new THREE.Color(1, 1, 1)); dirL.intensity = 0.15; dirL.position.set(5, 15, 5);
+  } else if (trk.envType === 'volcanic') {
+    R.setClearColor(new THREE.Color(0.15, 0.04, 0.02));
+    scene.fog!.color.set(new THREE.Color(0.15, 0.04, 0.02));
+    (scene.fog as THREE.FogExp2).density = 0.006;
+    ambL.color.set(new THREE.Color(0.5, 0.15, 0.05)); ambL.intensity = 0.6;
+    dirL.color.set(new THREE.Color(1, 0.4, 0.15)); dirL.intensity = 0.7; dirL.position.set(6, 18, 4);
+  } else if (trk.envType === 'jungle') {
+    R.setClearColor(new THREE.Color(0.04, 0.12, 0.04));
+    scene.fog!.color.set(new THREE.Color(0.04, 0.12, 0.04));
+    (scene.fog as THREE.FogExp2).density = 0.006;
+    ambL.color.set(new THREE.Color(0.15, 0.35, 0.1)); ambL.intensity = 0.7;
+    dirL.color.set(new THREE.Color(0.8, 1, 0.6)); dirL.intensity = 0.6; dirL.position.set(4, 20, 6);
+  } else if (trk.envType === 'stadium') {
+    R.setClearColor(new THREE.Color(0.03, 0.02, 0.06));
+    scene.fog!.color.set(new THREE.Color(0.03, 0.02, 0.06));
+    (scene.fog as THREE.FogExp2).density = 0.004;
+    ambL.color.set(new THREE.Color(0.1, 0.08, 0.15)); ambL.intensity = 0.4;
+    dirL.color.set(new THREE.Color(0.9, 0.8, 1)); dirL.intensity = 0.5; dirL.position.set(5, 18, 5);
   }
 }
 

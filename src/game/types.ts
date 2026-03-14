@@ -24,7 +24,7 @@ export interface TrackObstacle {
 export interface TrackDef {
   name: string;
   envColor: RGB;
-  envType: 'desert' | 'ice' | 'neon';
+  envType: 'desert' | 'ice' | 'neon' | 'volcanic' | 'jungle' | 'stadium';
   pts: [number, number][];
   obs: TrackObstacle[];
 }
@@ -46,6 +46,9 @@ export interface BikeState {
   driftFactor: number;
   pos: THREE.Vector3;
   suspBob: number;
+  wheelie: boolean;
+  wheelieBalance: number; // -1 to 1, 0 = perfect balance
+  wheelieTime: number;
 }
 
 // ── Timer / Race State ──
@@ -114,6 +117,7 @@ export interface InputState {
   mz: number;
   crx: number;
   cry: number;
+  space: boolean;
 }
 
 // ── Global Stats ──

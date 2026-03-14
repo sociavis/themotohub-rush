@@ -2,6 +2,8 @@ import type { GlobalStats, MXTimer } from './types';
 import { T, rgba } from './themes';
 import { achState, ACH_DEFS } from './achievements';
 import { MX_TRACKS } from './tracks';
+import { getCachedLeaderboard } from './leaderboard';
+import { isLoggedIn, getUser } from './auth';
 
 export const STATS_API = 'https://sociavisual.com/stats.php';
 
@@ -66,19 +68,36 @@ export function fmtMXTime(s: number): string {
 export function renderStats(mxTimer: MXTimer): void {
   const t = T();
   const sc = rgba(t.secondary, 1), pc = rgba(t.primary, 1);
-  const isLocal = statsMode === 'local';
   statsPanel.style.borderColor = rgba(t.primary, 0.3);
   statsPanel.style.color = rgba(t.primary, 0.8);
   statsPanel.style.background = rgba(t.bg, 0.92);
 
-  if (isLocal) {
+  const tabs = `<div class="stats-toggle"><button class="stats-toggle-btn${statsMode === 'local' ? ' active' : ''}" data-mode="local" style="color:${pc}">Session</button><button class="stats-toggle-btn${statsMode === 'global' ? ' active' : ''}" data-mode="global" style="color:${pc}">Global</button><button class="stats-toggle-btn${statsMode === 'leaderboard' ? ' active' : ''}" data-mode="leaderboard" style="color:${pc}">Board</button></div>`;
+
+  if (statsMode === 'local') {
     const timeStr = Math.floor(achState.elapsed / 60) + 'm ' + Math.floor(achState.elapsed % 60) + 's';
-    statsPanel.innerHTML = `<div class="stats-close" id="statsClose">×</div><div class="stats-title">Statistics</div><div class="stats-toggle"><button class="stats-toggle-btn active" data-mode="local" style="color:${pc}">Session</button><button class="stats-toggle-btn" data-mode="global" style="color:${pc}">Global</button></div><div class="stats-row"><span>MX Races</span><span class="stats-val" style="color:${sc}">${achState.mxRacesCompleted}</span></div><div class="stats-row"><span>Session Time</span><span class="stats-val" style="color:${sc}">${timeStr}</span></div><div class="stats-row"><span>Achievements</span><span class="stats-val" style="color:${sc}">${achState.unlocked.size}/${ACH_DEFS.length}</span><span class="stats-bar"><span class="stats-bar-fill" style="width:${Math.round(achState.unlocked.size / ACH_DEFS.length * 100)}%;background:${pc}"></span></span></div><div class="stats-row" style="margin-top:6px"><span style="opacity:0.5;font-size:8px">LAP RECORDS</span></div>${MX_TRACKS.map(tr => `<div class="stats-row"><span>${tr.name}</span><span class="stats-val" style="color:${sc}">${mxTimer.bestLapTimes[tr.name] ? fmtMXTime(mxTimer.bestLapTimes[tr.name]) : '—'}</span></div>`).join('')}`;
-  } else {
+    const userInfo = isLoggedIn() ? `<div class="stats-row"><span>Player</span><span class="stats-val" style="color:${sc}">${getUser()!.displayName}</span></div>` : '';
+    statsPanel.innerHTML = `<div class="stats-close" id="statsClose">×</div><div class="stats-title">Statistics</div>${tabs}${userInfo}<div class="stats-row"><span>MX Races</span><span class="stats-val" style="color:${sc}">${achState.mxRacesCompleted}</span></div><div class="stats-row"><span>Session Time</span><span class="stats-val" style="color:${sc}">${timeStr}</span></div><div class="stats-row"><span>Achievements</span><span class="stats-val" style="color:${sc}">${achState.unlocked.size}/${ACH_DEFS.length}</span><span class="stats-bar"><span class="stats-bar-fill" style="width:${Math.round(achState.unlocked.size / ACH_DEFS.length * 100)}%;background:${pc}"></span></span></div><div class="stats-row" style="margin-top:6px"><span style="opacity:0.5;font-size:8px">LAP RECORDS</span></div>${MX_TRACKS.map(tr => `<div class="stats-row"><span>${tr.name}</span><span class="stats-val" style="color:${sc}">${mxTimer.bestLapTimes[tr.name] ? fmtMXTime(mxTimer.bestLapTimes[tr.name]) : '—'}</span></div>`).join('')}`;
+  } else if (statsMode === 'global') {
     const g = globalStats;
     const gTimeStr = Math.floor((g.time || 0) / 3600) + 'h ' + Math.floor(((g.time || 0) % 3600) / 60) + 'm';
     const loading = !globalFetched ? '<div style="text-align:center;font-size:8px;opacity:0.4;margin:6px 0">[ Loading... ]</div>' : '';
-    statsPanel.innerHTML = `<div class="stats-close" id="statsClose">×</div><div class="stats-title">Statistics</div><div class="stats-toggle"><button class="stats-toggle-btn" data-mode="local" style="color:${pc}">Session</button><button class="stats-toggle-btn active" data-mode="global" style="color:${pc}">Global</button></div>${loading}<div class="stats-row"><span>Total Sessions</span><span class="stats-val" style="color:${sc}">${(g.sessions || 0).toLocaleString()}</span></div><div class="stats-row"><span>MX Races</span><span class="stats-val" style="color:${sc}">${(g.mxRaces || 0).toLocaleString()}</span></div><div class="stats-row"><span>Total Time</span><span class="stats-val" style="color:${sc}">${gTimeStr}</span></div><div class="stats-row"><span>Achievements Earned</span><span class="stats-val" style="color:${sc}">${(g.achievements || 0).toLocaleString()}</span></div><div class="stats-row" style="margin-top:6px"><span style="opacity:0.5;font-size:8px">LAP WORLD RECORDS</span></div>${MX_TRACKS.map(tr => `<div class="stats-row"><span>${tr.name}</span><span class="stats-val" style="color:${sc}">${g['wr_' + tr.name] && g['wr_' + tr.name] > 0 ? fmtMXTime(g['wr_' + tr.name]) : '—'}</span></div>`).join('')}`;
+    statsPanel.innerHTML = `<div class="stats-close" id="statsClose">×</div><div class="stats-title">Statistics</div>${tabs}${loading}<div class="stats-row"><span>Total Sessions</span><span class="stats-val" style="color:${sc}">${(g.sessions || 0).toLocaleString()}</span></div><div class="stats-row"><span>MX Races</span><span class="stats-val" style="color:${sc}">${(g.mxRaces || 0).toLocaleString()}</span></div><div class="stats-row"><span>Total Time</span><span class="stats-val" style="color:${sc}">${gTimeStr}</span></div><div class="stats-row"><span>Achievements Earned</span><span class="stats-val" style="color:${sc}">${(g.achievements || 0).toLocaleString()}</span></div><div class="stats-row" style="margin-top:6px"><span style="opacity:0.5;font-size:8px">LAP WORLD RECORDS</span></div>${MX_TRACKS.map(tr => `<div class="stats-row"><span>${tr.name}</span><span class="stats-val" style="color:${sc}">${g['wr_' + tr.name] && g['wr_' + tr.name] > 0 ? fmtMXTime(g['wr_' + tr.name]) : '—'}</span></div>`).join('')}`;
+  } else {
+    // Leaderboard mode
+    let lbHtml = `<div class="stats-close" id="statsClose">×</div><div class="stats-title">Leaderboard</div>${tabs}`;
+    for (const tr of MX_TRACKS) {
+      const lb = getCachedLeaderboard(tr.name);
+      lbHtml += `<div class="stats-row" style="margin-top:6px"><span style="opacity:0.5;font-size:8px">${tr.name.toUpperCase()}</span></div>`;
+      if (lb && lb.entries.length > 0) {
+        for (const e of lb.entries.slice(0, 5)) {
+          lbHtml += `<div class="stats-row"><span style="opacity:0.5;width:16px">${e.rank}.</span><span>${e.displayName}</span><span class="stats-val" style="color:${sc}">${fmtMXTime(e.lapTime)}</span></div>`;
+        }
+      } else {
+        lbHtml += `<div class="stats-row"><span style="opacity:0.4;font-size:9px">No times yet</span></div>`;
+      }
+    }
+    statsPanel.innerHTML = lbHtml;
   }
   document.getElementById('statsClose')!.addEventListener('click', (e) => { e.stopPropagation(); toggleStats(mxTimer); });
   statsPanel.querySelectorAll('.stats-toggle-btn').forEach(b => {
