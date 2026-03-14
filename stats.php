@@ -21,15 +21,9 @@ $STATS_FILE = __DIR__ . '/stats_data.json';
 // Default stats structure
 $defaults = [
     'visits'       => 0,
-    'pulses'       => 0,
-    'trail'        => 0,
-    'wins'         => 0,
-    'freqs'        => 0,
-    'distance'     => 0,
     'time'         => 0,
     'achievements' => 0,
     'sessions'     => 0,
-    'topSpeed'     => 0,
     'mxRaces'      => 0,
     'mxBestTime'   => 0,
     'wr_DUST BOWL' => 0,
@@ -83,19 +77,8 @@ switch ($action) {
         $stats = loadStats($STATS_FILE, $defaults);
 
         // Accumulate session totals
-        $stats['pulses']       += max(0, intval($data['pulses'] ?? 0));
-        $stats['trail']        += max(0, intval($data['trail'] ?? 0));
-        $stats['wins']         += max(0, intval($data['wins'] ?? 0));
-        $stats['freqs']        += max(0, intval($data['freqs'] ?? 0));
-        $stats['distance']     += max(0, intval($data['distance'] ?? 0));
         $stats['time']         += max(0, intval($data['time'] ?? 0));
         $stats['achievements'] += max(0, intval($data['achievements'] ?? 0));
-
-        // Track top speed (highest ever)
-        $speed = intval($data['topSpeed'] ?? 0);
-        if ($speed > $stats['topSpeed']) {
-            $stats['topSpeed'] = $speed;
-        }
 
         // Motocross stats
         $stats['mxRaces'] += max(0, intval($data['mxRaces'] ?? 0));
