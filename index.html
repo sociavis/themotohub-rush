@@ -186,6 +186,59 @@
   .ws-record-row{display:flex;justify-content:space-between;padding:4px 0;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase}
   .ws-track-name{color:var(--ws-primary,#ff6400);opacity:0.7}
   .ws-track-time{color:var(--ws-secondary,#00e5ff)}
+
+  /* PROFILE PANEL */
+  .profile-panel{position:absolute;z-index:25;pointer-events:auto;bottom:66px;left:50%;transform:translateX(-50%);padding:18px 24px;border:1px solid rgba(255,100,0,0.3);border-radius:3px;font-family:'Share Tech Mono',monospace;text-transform:uppercase;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:none;animation:popIn 0.25s ease-out;min-width:260px;display:none;background:rgba(6,10,16,0.92);color:rgba(255,255,255,0.8)}
+  .profile-panel.open{display:block}
+  .profile-panel .panel-title{font-size:10px;letter-spacing:0.25em;opacity:0.5;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06)}
+  .profile-panel .panel-close{position:absolute;top:6px;right:10px;font-size:14px;opacity:0.4;cursor:pointer}
+  .profile-row{display:flex;justify-content:space-between;align-items:baseline;font-size:10px;letter-spacing:0.1em;padding:3px 0}
+  .profile-row .profile-val{font-size:11px;color:var(--orange,#ff6400)}
+
+  /* LEADERBOARD PANEL */
+  .leaderboard-panel{position:absolute;z-index:25;pointer-events:auto;bottom:66px;left:50%;transform:translateX(-50%);padding:18px 24px;border:1px solid rgba(255,100,0,0.3);border-radius:3px;font-family:'Share Tech Mono',monospace;text-transform:uppercase;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:none;animation:popIn 0.25s ease-out;min-width:320px;max-height:70vh;overflow-y:auto;display:none;background:rgba(6,10,16,0.92);color:rgba(255,255,255,0.8)}
+  .leaderboard-panel.open{display:block}
+  .leaderboard-panel .panel-title{font-size:10px;letter-spacing:0.25em;opacity:0.5;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06)}
+  .leaderboard-panel .panel-close{position:absolute;top:6px;right:10px;font-size:14px;opacity:0.4;cursor:pointer}
+  .lb-track-tabs{display:flex;gap:0;margin-bottom:12px;border:1px solid rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;flex-wrap:wrap}
+  .lb-track-tab{flex:1;padding:5px 8px;font-size:8px;letter-spacing:0.08em;text-align:center;cursor:pointer;transition:all 0.3s;background:transparent;border:none;color:var(--orange,#ff6400);opacity:0.4;min-width:50px}
+  .lb-track-tab.active{opacity:1;background:rgba(255,255,255,0.06)}
+  .lb-entry{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:10px;letter-spacing:0.08em;border-bottom:1px solid rgba(255,255,255,0.03)}
+  .lb-rank{width:24px;text-align:center;font-size:12px;font-weight:700;color:var(--orange,#ff6400)}
+  .lb-rank.gold{color:#ffd700}.lb-rank.silver{color:#c0c0c0}.lb-rank.bronze{color:#cd7f32}
+  .lb-name{flex:1}
+  .lb-time{font-size:11px;color:var(--orange,#ff6400)}
+  .lb-wr-banner{text-align:center;padding:8px;margin-bottom:10px;border:1px solid rgba(255,215,0,0.2);border-radius:2px;background:rgba(255,215,0,0.05)}
+  .lb-wr-label{font-size:8px;letter-spacing:0.2em;color:rgba(255,215,0,0.6);margin-bottom:4px}
+  .lb-wr-time{font-size:16px;color:#ffd700;letter-spacing:0.1em}
+  .lb-wr-holder{font-size:9px;letter-spacing:0.1em;opacity:0.5;margin-top:2px}
+
+  /* SHOP PANEL */
+  .shop-panel{position:absolute;z-index:25;pointer-events:auto;bottom:66px;left:50%;transform:translateX(-50%);padding:18px 24px;border:1px solid rgba(255,100,0,0.3);border-radius:3px;font-family:'Share Tech Mono',monospace;text-transform:uppercase;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:none;animation:popIn 0.25s ease-out;min-width:340px;max-height:70vh;overflow-y:auto;display:none;background:rgba(6,10,16,0.92);color:rgba(255,255,255,0.8)}
+  .shop-panel.open{display:block}
+  .shop-panel .panel-title{font-size:10px;letter-spacing:0.25em;opacity:0.5;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06)}
+  .shop-panel .panel-close{position:absolute;top:6px;right:10px;font-size:14px;opacity:0.4;cursor:pointer}
+  .shop-funds{text-align:center;padding:8px;margin-bottom:12px;border:1px solid rgba(255,100,0,0.15);border-radius:2px;background:rgba(255,100,0,0.04)}
+  .shop-funds-label{font-size:8px;letter-spacing:0.2em;opacity:0.5}
+  .shop-funds-val{font-size:18px;color:var(--orange,#ff6400);letter-spacing:0.1em}
+  .shop-category{margin-bottom:14px}
+  .shop-cat-title{font-size:9px;letter-spacing:0.2em;opacity:0.6;margin-bottom:6px}
+  .shop-item{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;margin-bottom:4px;border:1px solid rgba(255,255,255,0.06);border-radius:2px;transition:all 0.2s}
+  .shop-item:hover{border-color:rgba(255,255,255,0.15)}
+  .shop-item-info{display:flex;flex-direction:column;gap:2px}
+  .shop-item-name{font-size:10px;letter-spacing:0.1em}
+  .shop-item-desc{font-size:7px;letter-spacing:0.08em;opacity:0.4}
+  .shop-item-lvl{display:flex;gap:3px;margin-top:2px}
+  .shop-lvl-pip{width:14px;height:3px;border-radius:1px;background:rgba(255,255,255,0.1)}
+  .shop-lvl-pip.filled{background:var(--orange,#ff6400)}
+  .shop-buy-btn{padding:4px 12px;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;border:1px solid var(--orange,#ff6400);border-radius:2px;background:transparent;color:var(--orange,#ff6400);cursor:pointer;transition:all 0.2s}
+  .shop-buy-btn:hover{background:rgba(255,100,0,0.1)}
+  .shop-buy-btn.owned{opacity:0.3;cursor:default;border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.4)}
+  .shop-color-grid{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .shop-color-swatch{width:28px;height:28px;border-radius:2px;border:1.5px solid rgba(255,255,255,0.15);cursor:pointer;transition:all 0.2s;transform:rotate(45deg)}
+  .shop-color-swatch:hover{border-color:rgba(255,255,255,0.5);transform:rotate(45deg) scale(1.15)}
+  .shop-color-swatch.owned{border-color:var(--orange,#ff6400)}
+  .shop-color-swatch.active{box-shadow:0 0 8px currentColor}
 </style>
 <link rel="icon" type="image/x-icon" href="https://sociavisual.com/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://sociavisual.com/favicon-16x16.png">
@@ -219,16 +272,18 @@
     <div class="globe-btn" id="globeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/></svg></div>
     <div class="sound-btn off" id="soundBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg><div class="mute-line"></div></div>
     <div class="contact-btn" id="contactBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C6.48 2 2 5.58 2 10c0 2.24 1.12 4.26 2.92 5.7L4 22l4.2-2.52C9.38 19.82 10.66 20 12 20c5.52 0 10-3.58 10-8s-4.48-8-10-8z"/><circle cx="8" cy="10" r="1" fill="currentColor"/><circle cx="12" cy="10" r="1" fill="currentColor"/><circle cx="16" cy="10" r="1" fill="currentColor"/></svg></div>
+    <div class="profile-btn" id="profileBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg></div>
+    <div class="leaderboard-btn" id="leaderboardBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="6" width="4" height="15"/><rect x="17" y="9" width="4" height="12"/><path d="M12 2l1.5 2h-3L12 2z"/></svg></div>
+    <div class="shop-btn" id="shopBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9h18l-2 11H5L3 9z"/><path d="M9 9V5a3 3 0 0 1 6 0v4"/><line x1="9" y1="14" x2="9" y2="17"/><line x1="15" y1="14" x2="15" y2="17"/></svg></div>
   </div>
   <div class="stats-panel" id="statsPanel"></div>
+  <div class="profile-panel" id="profilePanel"></div>
+  <div class="leaderboard-panel" id="leaderboardPanel"></div>
+  <div class="shop-panel" id="shopPanel"></div>
   <div class="contact-overlay" id="contactOverlay"><div class="contact-modal" id="contactModal" style="position:relative"><div class="cm-close" id="contactClose">×</div><div class="cm-title">Get In Touch</div><div class="cm-sub">Socia Visual — Web Design & Development</div><form id="contactForm" action="https://formsubmit.co/scott@sociavisual.com" method="POST"><input type="hidden" name="_captcha" value="false"><input type="hidden" name="_template" value="box"><input type="hidden" name="_subject" value="New Contact from Interactive Hero"><input type="text" name="_honey" class="hp-field" tabindex="-1" autocomplete="off"><input type="hidden" name="_next" value="https://sociavisual.com"><div class="cm-field"><label>Name</label><input type="text" name="name" required autocomplete="name"></div><div class="cm-field"><label>Email</label><input type="email" name="email" required autocomplete="email"></div><div class="cm-field"><label>Services</label><div class="cm-services" id="svcList"><div class="cm-svc" data-svc="Web Design"><span class="svc-check">○</span> Web</div><div class="cm-svc" data-svc="Graphics"><span class="svc-check">○</span> Graphics</div><div class="cm-svc" data-svc="Marketing"><span class="svc-check">○</span> Marketing</div></div><input type="hidden" name="services" id="svcInput" value=""></div><div class="cm-field"><label>Message</label><textarea name="message" required></textarea></div><button type="submit" class="cm-submit">Transmit</button><div class="cm-status" id="cmStatus"></div></form></div></div>
   <div class="hud-nav" id="hudNav" style="display:none">
   </div>
-  <div class="theme-selector" id="themeSel">
-    <div class="theme-item on" data-theme="0"><div class="theme-btn tb-inferno"></div><div class="theme-label">Inferno</div></div>
-    <div class="theme-item" data-theme="1"><div class="theme-btn tb-arctic"></div><div class="theme-label">Arctic</div></div>
-    <div class="theme-item" data-theme="2"><div class="theme-btn tb-venom"></div><div class="theme-label">Venom</div></div>
-  </div>
+  <div id="raceCountdown" style="display:none;position:fixed;inset:0;z-index:50;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:clamp(60px,15vw,120px);font-weight:900;color:rgba(255,100,0,0.9);text-shadow:0 0 40px rgba(255,100,0,0.5),0 0 80px rgba(255,100,0,0.2);pointer-events:none;transition:opacity 0.4s ease"></div>
 </div>
 <div class="cursor-dot" id="cdot"></div>
 <div class="cursor-ring" id="cring"></div>

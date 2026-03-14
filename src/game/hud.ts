@@ -36,7 +36,7 @@ export function updateHUD(
   const totalTimeStr = mxTimer.running ? fmtMXTime(now - mxTimer.start) : '--:--.--';
   const bestKey = trk.name;
   const bestStr = mxTimer.bestLapTimes[bestKey] ? fmtMXTime(mxTimer.bestLapTimes[bestKey]) : '--:--.--';
-  const bikeStatus = mxBike.airborne ? 'AIRBORNE' : mxAccel ? 'THROTTLE' : mxBike.speed > 1 ? 'COASTING' : 'IDLE';
+  const bikeStatus = mxBike.airborne ? 'AIRBORNE' : mxBike.wheelie ? 'WHEELIE' : mxAccel ? 'THROTTLE' : mxBike.speed > 1 ? 'COASTING' : 'IDLE';
 
   el('hud-l1', 'Race Status');
   el('hud-v1', mxTimer.running ? 'RACING' : 'READY');

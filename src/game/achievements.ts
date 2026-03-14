@@ -24,12 +24,11 @@ export const achState: AchievementState = {
 };
 
 export const ACH_DEFS: AchievementDef[] = [
-  { id: 'st', icon: '◐', name: 'Stylist', desc: 'Try all 3 themes', diff: 'easy', check: () => achState.themesUsed.size >= 3 },
   { id: 'mx1', icon: '⚑', name: 'Rookie Rider', desc: 'Complete your first race', diff: 'easy', check: () => achState.mxRacesCompleted >= 1 },
   { id: 'mxd', icon: '☁', name: 'Dust Cloud', desc: 'Hit your first jump', diff: 'easy', check: () => achState.mxMaxAir > 0 },
   { id: 'mxa', icon: '↟', name: 'Hang Time', desc: 'Stay airborne 2+ seconds', diff: 'medium', check: () => achState.mxMaxAir >= 2 },
   { id: 'mx3', icon: '⟐', name: 'Track Master', desc: 'Complete all 3 tracks', diff: 'medium', check: () => achState.mxTracksCompleted >= 3 },
-  { id: 'mxb', icon: '⚡', name: 'Berm Blaster', desc: 'Hit 10 berms at speed', diff: 'medium', check: () => achState.mxBermHits >= 10 },
+  { id: 'mxb', icon: '⤻', name: 'Berm Blaster', desc: 'Hit 10 berms at speed', diff: 'medium', check: () => achState.mxBermHits >= 10 },
   { id: 'p3', icon: '◷', name: 'Endurance', desc: 'Stay 3 minutes', diff: 'medium', check: () => achState.elapsed >= 180 },
   { id: 'mxf', icon: '⏱', name: 'Speed Demon', desc: 'Finish a race under 40s', diff: 'hard', check: () => achState.mxBestTime > 0 && achState.mxBestTime < 40 },
   { id: 'mxc', icon: '⊘', name: 'Clean Run', desc: 'Finish without leaving track', diff: 'hard', check: () => achState.mxCleanLaps >= 1 },
