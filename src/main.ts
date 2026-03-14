@@ -25,11 +25,16 @@ import { submitLapTime, fetchLeaderboard, fetchWorldRecord, getWRForTrack } from
 import { initShop, applyUpgrades, checkAchievementFunds, getSuspensionBonus, getTireGrip } from './game/shop';
 import { initLeaderboardUI } from './ui/leaderboard-ui';
 import { initProfileUI } from './ui/profile-ui';
+import { showMainMenu, hideMainMenu } from './ui/main-menu';
+import { showTrackSelect, hideTrackSelect } from './ui/track-select';
+import { showPostRace, hidePostRace } from './ui/post-race';
+import { showFullShop, showFullProfile, showFullAchievements, hideFullScreen } from './ui/full-screens';
 
 // ── Game State ──
+type GameScreen = 'menu' | 'track-select' | 'racing' | 'post-race' | 'shop' | 'profile' | 'achievements';
+let currentScreen: GameScreen = 'menu';
 let mxGameActive = false;
 let mxAccel = false;
-const curSec = 0;
 
 const mxTimer: MXTimer = {
   running: false, start: 0, lapStart: 0, lapTime: 0,
@@ -48,6 +53,93 @@ function resetMX(): void {
   const sp = mxSpline!.getPointAt(0);
   mxBike.pos.set(sp.x, 0, sp.z);
   bikeGroup.position.copy(mxBike.pos);
+}
+
+// ── HUD Visibility ──
+function setHUDVisible(visible: boolean): void {
+  const els = [
+    'bottomActions', 'achTray', 'wheelieBtn', 'wmLogo',
+  ];
+  const hudPanels = document.querySelectorAll('.hud-panel, .hud-corner, .bottom-bar');
+  for (const id of els) {
+    const e = document.getElementById(id);
+    if (e) e.style.display = visible ? '' : 'none';
+  }
+  hudPanels.forEach(e => (e as HTMLElement).style.display = visible ? '' : 'none');
+}
+
+// ── Game Flow ──
+function goToMainMenu(): void {
+  currentScreen = 'menu';
+  mxGameActive = false;
+  mxAccel = false;
+  mxTimer.running = false;
+  if (isSoundOn()) stopEngine();
+  setHUDVisible(false);
+  showMainMenu((action) => {
+    hideMainMenu();
+    if (action === 'race') goToTrackSelect();
+    else if (action === 'shop') goToShop();
+    else if (action === 'profile') goToProfile();
+    else if (action === 'achievements') goToAchievements();
+  });
+}
+
+function goToTrackSelect(): void {
+  currentScreen = 'track-select';
+  setHUDVisible(false);
+  showTrackSelect(mxTimer.bestLapTimes, (trackIdx) => {
+    hideTrackSelect();
+    startRace(trackIdx);
+  }, () => {
+    hideTrackSelect();
+    goToMainMenu();
+  });
+}
+
+function startRace(trackIdx: number): void {
+  currentScreen = 'racing';
+  setTrackIdx(trackIdx);
+  sectionEnter();
+  setHUDVisible(true);
+  // Auto-start countdown
+  setTimeout(() => startRaceCountdown(), 500);
+}
+
+function goToPostRace(trackIdx: number, lapTime: number, isNewBest: boolean): void {
+  currentScreen = 'post-race';
+  setHUDVisible(false);
+  if (isSoundOn()) stopEngine();
+  showPostRace(trackIdx, mxTimer.bestLapTimes, lapTime, isNewBest, mxTimer.laps, (action) => {
+    hidePostRace();
+    if (action === 'retry') startRace(trackIdx);
+    else if (action === 'track-select') goToTrackSelect();
+    else if (action === 'menu') goToMainMenu();
+  });
+}
+
+function goToShop(): void {
+  currentScreen = 'shop';
+  showFullShop(() => {
+    hideFullScreen('fullShop');
+    goToMainMenu();
+  });
+}
+
+function goToProfile(): void {
+  currentScreen = 'profile';
+  showFullProfile(() => {
+    hideFullScreen('fullProfile');
+    goToMainMenu();
+  });
+}
+
+function goToAchievements(): void {
+  currentScreen = 'achievements';
+  showFullAchievements(() => {
+    hideFullScreen('fullAchievements');
+    goToMainMenu();
+  });
 }
 
 // ── Section Logic ──
@@ -105,6 +197,7 @@ function startRaceCountdown(): void {
 
 function sectionClick(): void {
   achState.clicksPerSec[0]++;
+  if (currentScreen !== 'racing') return;
   sndClick();
   if (!mxTimer.running && !mxCountdownActive && mxBike.speed < 0.5) {
     startRaceCountdown();
@@ -143,21 +236,22 @@ function updateMX(t: number): void {
   // Steering (mouse, touch, or arrow keys)
   let latTarget = 0;
   if (arrowLeft || arrowRight) {
-    // Arrow key steering — direct lateral control
     const arrowDir = (arrowRight ? 1 : 0) - (arrowLeft ? 1 : 0);
-    latTarget = Math.max(-1, Math.min(1, mxBike.lat + arrowDir * mxBike.turnSpeed * dt * 1.2));
+    latTarget = Math.max(-0.85, Math.min(0.85, mxBike.lat + arrowDir * mxBike.turnSpeed * dt * 1.2));
   } else if (mob) {
     const touchOff = (I.tx - innerWidth / 2) / (innerWidth / 2);
-    latTarget = Math.max(-1, Math.min(1, mxBike.lat + touchOff * mxBike.turnSpeed * dt * 1.5));
+    latTarget = Math.max(-0.85, Math.min(0.85, mxBike.lat + touchOff * mxBike.turnSpeed * dt * 1.5));
   } else {
     const toBikeX = I.mx - mxBike.pos.x;
     const toBikeZ = I.mz - mxBike.pos.z;
-    latTarget = Math.max(-1, Math.min(1, (toBikeX * curNorm.x + toBikeZ * curNorm.z) * 0.18));
+    latTarget = Math.max(-0.85, Math.min(0.85, (toBikeX * curNorm.x + toBikeZ * curNorm.z) * 0.18));
   }
-  const steerDelta = latTarget - mxBike.lat;
-  mxBike.driftFactor = lerp(mxBike.driftFactor, steerDelta, 0.15);
-  mxBike.lat = lerp(mxBike.lat, mxBike.lat + mxBike.driftFactor, mxBike.turnSpeed * dt * 1.4);
+  // Smooth, stable steering — no feedback oscillation
+  const prevLat = mxBike.lat;
+  mxBike.lat = lerp(mxBike.lat, latTarget, mxBike.turnSpeed * dt * 0.8);
   mxBike.lat = Math.max(-0.85, Math.min(0.85, mxBike.lat));
+  // Drift factor tracks actual rate of lateral change (for lean/effects only)
+  mxBike.driftFactor = lerp(mxBike.driftFactor, (mxBike.lat - prevLat) / Math.max(dt, 0.001), 0.15);
 
   // Berm assist
   const bermForce = getBerm(mxBike.t);
@@ -166,7 +260,10 @@ function updateMX(t: number): void {
     mxBike.speed *= 1.008;
     if (mxBike.speed > 6) achState.mxBermHits = (achState.mxBermHits || 0) + 1;
   }
-  mxBike.lean = lerp(mxBike.lean, (mxBike.lat + mxBike.driftFactor * 0.5) * 0.5, 0.18);
+  // Lean into turns — based on lateral position and speed
+  const speedLeanFactor = Math.min(mxBike.speed / mxBike.maxSpeed, 1);
+  const leanTarget = mxBike.lat * 0.6 * speedLeanFactor + mxBike.driftFactor * 0.008;
+  mxBike.lean = lerp(mxBike.lean, leanTarget, 0.12);
 
   // Terrain friction based on environment type
   const trk = MX_TRACKS[mxTrackIdx];
@@ -291,13 +388,13 @@ function updateMX(t: number): void {
             parts.push(new Pt(mxBike.pos.x, 1.5 + Math.random(), mxBike.pos.z, Math.cos(a) * sp, Math.random() * 1.0 + 0.2, Math.sin(a) * sp, c, 3 + Math.random() * 4, 0.15 + Math.random() * 0.35));
           }
           sndAchievement();
+          // Show post-race screen after celebration particles
+          const finishedTrackIdx = mxTrackIdx;
+          const finishedLapTime = lapTime;
+          const finishedIsNewBest = isNewBest;
           setTimeout(() => {
-            if (mxGameActive) {
-              nextTrack(); buildTrack(); resetMX(); setVis();
-              const nextName = MX_TRACKS[mxTrackIdx].name;
-              fetchLeaderboard(nextName);
-              fetchWorldRecord(nextName);
-            }
+            mxGameActive = false;
+            goToPostRace(finishedTrackIdx, finishedLapTime, finishedIsNewBest);
           }, 2500);
         }
       } else {
@@ -375,7 +472,7 @@ function updateMX(t: number): void {
   mxBike.angle = Math.atan2(curTan.x, curTan.z);
   bikeGroup.position.copy(mxBike.pos);
   bikeGroup.rotation.y = mxBike.angle;
-  bikeGroup.rotation.z = mxBike.lean * 0.45;
+  bikeGroup.rotation.z = mxBike.lean * 0.7;
   // Tilt: negative = front up. Wheelie: strong front-up; Airborne: slight nose-up; Accel: slight nose-up (torque feel)
   const tiltTarget = mxBike.wheelie ? -0.65 : mxBike.airborne ? -0.2 : (mxAccel ? -0.06 : 0.02);
   bikeGroup.rotation.x = lerp(bikeGroup.rotation.x || 0, tiltTarget, mxBike.wheelie ? 0.25 : 0.1);
@@ -427,12 +524,9 @@ function updateMX(t: number): void {
 
 // ── Initialize ──
 function startGame(): void {
-  sectionEnter();
-
-  setTimeout(() => {
-    hintEl.textContent = HINTS[0]; hintEl.classList.add('visible');
-    setTimeout(() => { hintEl.classList.remove('visible'); setTimeout(cycleHint, 4000); }, 2500);
-  }, 1500);
+  // Show main menu instead of directly entering race
+  setHUDVisible(false);
+  goToMainMenu();
 
   const t0 = performance.now();
   const cr = getCursorRing();

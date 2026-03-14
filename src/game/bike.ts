@@ -63,6 +63,8 @@ bikeGroup.add(rWheelGroup);
 bikeGroup.visible = false;
 bikeGroup.scale.setScalar(1.3);
 bikeGroup.renderOrder = 1;
+// YXZ order: heading (Y) in world, tilt (X) and lean (Z) in bike's local frame
+bikeGroup.rotation.order = 'YXZ';
 
 export function resetBike(): void {
   mxBike.t = 0; mxBike.lat = 0; mxBike.speed = 0; mxBike.angle = 0;

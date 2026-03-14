@@ -22,8 +22,9 @@ scene.add(s4);
 
 // ── Dust Trail ──
 const dustGeo = new THREE.BufferGeometry();
-const dustPos = new Float32Array(90 * 3);
+const dustPos = new Float32Array(30 * 3);
 dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+dustGeo.setDrawRange(0, 0);
 export const dustLine = new THREE.Line(
   dustGeo,
   new THREE.LineBasicMaterial({ color: tC(T().primary), transparent: true, opacity: 0.3 }),
@@ -49,26 +50,30 @@ export const tireTrail: { x: number; y: number; z: number }[] = [];
 export const mxAmbientParts: { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; ml: number }[] = [];
 export const MX_AMB_MAX = 60;
 const mxAmbGeo = new THREE.BufferGeometry();
-const mxAmbPos = new Float32Array(60 * 3);
-const mxAmbSz = new Float32Array(60);
+const mxAmbPos = new Float32Array(MX_AMB_MAX * 3);
+const mxAmbSz = new Float32Array(MX_AMB_MAX);
 mxAmbGeo.setAttribute('position', new THREE.BufferAttribute(mxAmbPos, 3));
 mxAmbGeo.setAttribute('size', new THREE.BufferAttribute(mxAmbSz, 1));
+mxAmbGeo.setDrawRange(0, 0);
 export const mxAmbMat = new THREE.PointsMaterial({ color: 0xffffff, transparent: true, opacity: 0.25, size: 0.15, sizeAttenuation: true });
 export const mxAmbPoints = new THREE.Points(mxAmbGeo, mxAmbMat);
 mxAmbPoints.visible = false;
+mxAmbPoints.frustumCulled = false;
 s4.add(mxAmbPoints);
 
 // ── Roost Particles ──
 export const mxRoostParts: { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; ml: number }[] = [];
-export const MX_ROOST_MAX = 70;
+export const MX_ROOST_MAX = 120;
 const mxRoostGeo = new THREE.BufferGeometry();
-const mxRoostPos = new Float32Array(70 * 3);
-const mxRoostSz = new Float32Array(70);
+const mxRoostPos = new Float32Array(MX_ROOST_MAX * 3);
+const mxRoostSz = new Float32Array(MX_ROOST_MAX);
 mxRoostGeo.setAttribute('position', new THREE.BufferAttribute(mxRoostPos, 3));
 mxRoostGeo.setAttribute('size', new THREE.BufferAttribute(mxRoostSz, 1));
-export const mxRoostMat = new THREE.PointsMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, size: 0.2, sizeAttenuation: true });
+mxRoostGeo.setDrawRange(0, 0);
+export const mxRoostMat = new THREE.PointsMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, size: 0.22, sizeAttenuation: true });
 export const mxRoostPoints = new THREE.Points(mxRoostGeo, mxRoostMat);
 mxRoostPoints.visible = false;
+mxRoostPoints.frustumCulled = false;
 s4.add(mxRoostPoints);
 
 // Add bike to s4
@@ -247,7 +252,7 @@ export function buildTrack(): void {
     mxCPMeshes.push({ userData: { cpIdx: i, cpT } });
   }
 
-  // Track border markers
+  // Track border markers (rectangular posts)
   const MARKER_COUNT = 24;
   for (let i = 0; i < MARKER_COUNT; i++) {
     const tP = i / MARKER_COUNT;
@@ -255,14 +260,17 @@ export function buildTrack(): void {
     const tan = mxSpline.getTangentAt(tP).normalize();
     const norm = new THREE.Vector3(-tan.z, 0, tan.x);
     const h = getTrackHeight(tP);
-    const orbIn = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8),
+    const markerAngle = Math.atan2(tan.x, tan.z);
+    const mIn = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.15),
       new THREE.MeshBasicMaterial({ color: tC(T().primary), transparent: true, opacity: 0.7 }));
-    orbIn.position.set(pt.x - norm.x * TRACK_W, h + 0.15, pt.z - norm.z * TRACK_W);
-    s4.add(orbIn); mxTrackMeshes.push(orbIn);
-    const orbOut = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8),
+    mIn.position.set(pt.x - norm.x * TRACK_W, h + 0.2, pt.z - norm.z * TRACK_W);
+    mIn.rotation.y = markerAngle;
+    s4.add(mIn); mxTrackMeshes.push(mIn);
+    const mOut = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.15),
       new THREE.MeshBasicMaterial({ color: tC(T().secondary), transparent: true, opacity: 0.7 }));
-    orbOut.position.set(pt.x + norm.x * TRACK_W, h + 0.15, pt.z + norm.z * TRACK_W);
-    s4.add(orbOut); mxTrackMeshes.push(orbOut);
+    mOut.position.set(pt.x + norm.x * TRACK_W, h + 0.2, pt.z + norm.z * TRACK_W);
+    mOut.rotation.y = markerAngle;
+    s4.add(mOut); mxTrackMeshes.push(mOut);
   }
 
   // Environment
@@ -577,12 +585,13 @@ export function updateDustTrail(bikePos: THREE.Vector3, curTan: THREE.Vector3, t
   } else if (dustTrail.length > 0) {
     dustTrail.shift();
   }
-  const dp = (dustLine.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array;
-  for (let i = 0; i < 30; i++) {
-    if (i < dustTrail.length) { dp[i * 3] = dustTrail[i].x; dp[i * 3 + 1] = dustTrail[i].y; dp[i * 3 + 2] = dustTrail[i].z; }
-    else { dp[i * 3] = bikePos.x; dp[i * 3 + 1] = 0; dp[i * 3 + 2] = bikePos.z; }
+  const geo = dustLine.geometry as THREE.BufferGeometry;
+  const dp = geo.attributes.position.array as Float32Array;
+  for (let i = 0; i < dustTrail.length; i++) {
+    dp[i * 3] = dustTrail[i].x; dp[i * 3 + 1] = dustTrail[i].y; dp[i * 3 + 2] = dustTrail[i].z;
   }
-  (dustLine.geometry as THREE.BufferGeometry).attributes.position.needsUpdate = true;
+  geo.attributes.position.needsUpdate = true;
+  geo.setDrawRange(0, dustTrail.length);
   (dustLine.material as THREE.LineBasicMaterial).opacity = 0.25;
 }
 
@@ -591,16 +600,18 @@ export function updateTireTrail(bikePos: THREE.Vector3, curTan: THREE.Vector3, s
     const lastTire = tireTrail[tireTrail.length - 1];
     const tx = bikePos.x - curTan.x * 0.4, tz = bikePos.z - curTan.z * 0.4;
     if (!lastTire || Math.hypot(tx - lastTire.x, tz - lastTire.z) > 0.3) {
+      if (tireTrail.length >= TIRE_TRAIL_MAX) tireTrail.shift();
       tireTrail.push({ x: tx, y: 0.02, z: tz });
-      if (tireTrail.length >= TIRE_TRAIL_MAX) tireTrail.length = TIRE_TRAIL_MAX;
     }
   }
-  const ttp = (tireTrailLine.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array;
-  for (let i = Math.max(0, tireTrail.length - 4); i < tireTrail.length; i++) {
+  const geo = tireTrailLine.geometry as THREE.BufferGeometry;
+  const ttp = geo.attributes.position.array as Float32Array;
+  // Write all current trail points to buffer
+  for (let i = 0; i < tireTrail.length; i++) {
     ttp[i * 3] = tireTrail[i].x; ttp[i * 3 + 1] = tireTrail[i].y; ttp[i * 3 + 2] = tireTrail[i].z;
   }
-  (tireTrailLine.geometry as THREE.BufferGeometry).attributes.position.needsUpdate = true;
-  (tireTrailLine.geometry as THREE.BufferGeometry).setDrawRange(0, tireTrail.length);
+  geo.attributes.position.needsUpdate = true;
+  geo.setDrawRange(0, tireTrail.length);
   (tireTrailLine.material as THREE.LineBasicMaterial).opacity = 0.1;
 }
 
@@ -628,14 +639,13 @@ export function updateRoostParticles(dt: number, speed: number, bikeGrounded: bo
   }
   const rrp = mxRoostGeo.attributes.position.array as Float32Array;
   const rrs = mxRoostGeo.attributes.size.array as Float32Array;
-  for (let i = 0; i < MX_ROOST_MAX; i++) {
-    if (i < mxRoostParts.length) {
-      const p = mxRoostParts[i]; rrp[i * 3] = p.x; rrp[i * 3 + 1] = p.y; rrp[i * 3 + 2] = p.z;
-      rrs[i] = (p.life / p.ml) * 0.25;
-    } else { rrp[i * 3] = 0; rrp[i * 3 + 1] = -10; rrp[i * 3 + 2] = 0; rrs[i] = 0; }
+  for (let i = 0; i < mxRoostParts.length; i++) {
+    const p = mxRoostParts[i]; rrp[i * 3] = p.x; rrp[i * 3 + 1] = p.y; rrp[i * 3 + 2] = p.z;
+    rrs[i] = (p.life / p.ml) * 0.28;
   }
   mxRoostGeo.attributes.position.needsUpdate = true;
   mxRoostGeo.attributes.size.needsUpdate = true;
+  mxRoostGeo.setDrawRange(0, mxRoostParts.length);
 }
 
 export function updateAmbientParticles(dt: number, t: number, bikePos: THREE.Vector3): void {
@@ -657,12 +667,11 @@ export function updateAmbientParticles(dt: number, t: number, bikePos: THREE.Vec
   }
   const amp = mxAmbGeo.attributes.position.array as Float32Array;
   const ams = mxAmbGeo.attributes.size.array as Float32Array;
-  for (let i = 0; i < MX_AMB_MAX; i++) {
-    if (i < mxAmbientParts.length) {
-      const p = mxAmbientParts[i]; amp[i * 3] = p.x; amp[i * 3 + 1] = p.y; amp[i * 3 + 2] = p.z;
-      ams[i] = Math.min(p.life / p.ml, 1) * 0.15;
-    } else { amp[i * 3] = 0; amp[i * 3 + 1] = -10; amp[i * 3 + 2] = 0; ams[i] = 0; }
+  for (let i = 0; i < mxAmbientParts.length; i++) {
+    const p = mxAmbientParts[i]; amp[i * 3] = p.x; amp[i * 3 + 1] = p.y; amp[i * 3 + 2] = p.z;
+    ams[i] = Math.min(p.life / p.ml, 1) * 0.15;
   }
   mxAmbGeo.attributes.position.needsUpdate = true;
   mxAmbGeo.attributes.size.needsUpdate = true;
+  mxAmbGeo.setDrawRange(0, mxAmbientParts.length);
 }

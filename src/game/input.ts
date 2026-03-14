@@ -40,7 +40,9 @@ export function isUI(el: Element | null): boolean {
     el.closest('.contact-overlay') || el.closest('.welcome-screen') ||
     el.closest('.profile-btn') || el.closest('.profile-panel') ||
     el.closest('.leaderboard-btn') || el.closest('.leaderboard-panel') ||
-    el.closest('.shop-btn') || el.closest('.shop-panel')
+    el.closest('.shop-btn') || el.closest('.shop-panel') ||
+    el.closest('.main-menu') || el.closest('.track-select') ||
+    el.closest('.post-race') || el.closest('.fullpage-screen')
   );
 }
 
