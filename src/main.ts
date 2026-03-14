@@ -20,7 +20,7 @@ import { initContact } from './ui/contact';
 import { startLoading } from './ui/loading';
 import { initSoundToggle } from './game/sound-toggle';
 import type { MXTimer } from './game/types';
-import { isLoggedIn, updateBestTime, getServerAchievements, getServerUpgrades, saveProgressToServer } from './game/auth';
+import { isLoggedIn, updateBestTime, getServerAchievements, getServerUpgrades, saveProgressToServer, getToken } from './game/auth';
 import { submitLapTime, fetchLeaderboard, fetchWorldRecord, getWRForTrack } from './game/leaderboard';
 import { initShop, applyUpgrades, checkAchievementFunds, getSuspensionBonus, getTireGrip, mergeServerUpgrades, getUpgradeSaveData } from './game/shop';
 import { initLeaderboardUI } from './ui/leaderboard-ui';
@@ -524,6 +524,33 @@ function updateMX(t: number): void {
 
 // ── Initialize ──
 function startGame(): void {
+  // Merge server-side progress now that auth is complete (checkSession ran in welcome screen)
+  if (isLoggedIn()) {
+    mergeServerAchievements(getServerAchievements());
+    mergeServerUpgrades(getServerUpgrades());
+  }
+
+  // Periodic server sync + save on page close
+  if (isLoggedIn()) {
+    setInterval(() => {
+      saveProgressToServer(getAchSaveData(), getUpgradeSaveData());
+    }, 30000);
+
+    const saveOnExit = () => {
+      const data = JSON.stringify({
+        achievements: getAchSaveData(),
+        upgrades: getUpgradeSaveData(),
+      });
+      const token = getToken();
+      if (token) {
+        navigator.sendBeacon('/api/user/save-progress-beacon',
+          new Blob([JSON.stringify({ token, ...JSON.parse(data) })], { type: 'application/json' }));
+      }
+    };
+    window.addEventListener('beforeunload', saveOnExit);
+    window.addEventListener('pagehide', saveOnExit);
+  }
+
   // Show main menu instead of directly entering race
   setHUDVisible(false);
   goToMainMenu();
@@ -591,19 +618,6 @@ function init(): void {
   initStatsListeners(mxTimer);
   loadAchState();
   initShop();
-
-  // Merge server-side progress if logged in
-  if (isLoggedIn()) {
-    mergeServerAchievements(getServerAchievements());
-    mergeServerUpgrades(getServerUpgrades());
-  }
-
-  // Sync progress to server periodically
-  if (isLoggedIn()) {
-    setInterval(() => {
-      saveProgressToServer(getAchSaveData(), getUpgradeSaveData());
-    }, 30000);
-  }
 
   initLeaderboardUI();
   initProfileUI();
