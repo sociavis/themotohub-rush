@@ -5,15 +5,23 @@ export const MX_TRACKS: TrackDef[] = [
     name: 'DUST BOWL',
     envColor: [255, 145, 40],
     envType: 'desert',
+    // Flowing loop inspired by heightmap — wide right sweep, tight left return
     pts: [
-      [0, 0], [12, 5], [26, 7], [38, 4], [42, -4],
-      [38, -14], [26, -19], [12, -18], [0, -12], [-4, -5],
+      [0, 0], [6, 6], [16, 12], [28, 14], [40, 10],
+      [48, 2], [50, -10], [44, -20], [32, -26],
+      [18, -24], [8, -18], [2, -10], [-4, -4],
     ],
     obs: [
-      { type: 'hill', at: 0.10, h: 2.4, len: 0.16 },
-      { type: 'berm', at: 0.32, side: 1 },
-      { type: 'hill', at: 0.52, h: 2.6, len: 0.16 },
-      { type: 'berm', at: 0.74, side: -1 },
+      // Rolling terrain matching heightmap elevation profile
+      { type: 'hill', at: 0.04, h: 1.6, len: 0.08 },   // Small rise off start
+      { type: 'hill', at: 0.13, h: 3.4, len: 0.16 },   // Big peak (top-left bright area)
+      { type: 'berm', at: 0.30, side: 1 },              // Right berm into descent
+      { type: 'hill', at: 0.34, h: 1.8, len: 0.09 },   // Roller in the S-curve
+      { type: 'hill', at: 0.46, h: 2.6, len: 0.14 },   // Second peak (right-side bright area)
+      { type: 'berm', at: 0.62, side: -1 },             // Left berm at bottom sweep
+      { type: 'hill', at: 0.66, h: 2.2, len: 0.12 },   // Rise through bottom curve
+      { type: 'hill', at: 0.80, h: 1.4, len: 0.08 },   // Small roller on return
+      { type: 'berm', at: 0.90, side: 1 },              // Berm into finish
     ],
   },
   {
