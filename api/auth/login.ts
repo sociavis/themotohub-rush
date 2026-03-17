@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { sql, initDB } from '../_db';
+import { sql, initDB } from '../_db.js';
 
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000;
 
@@ -48,9 +48,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const bestTimes: Record<string, number> = {};
   for (const b of bests) bestTimes[b.track_name] = b.best_time;
 
+  // Get persisted progress data
+  const { rows: progressRows } = await sql`SELECT achievements_data, upgrades_data FROM users WHERE id = ${user.id}`;
+  const progress = progressRows[0] || {};
+
   return res.json({
     token,
     user: { id: user.id, username: user.username, racerNumber: user.racer_number, country: user.country, totalRaces: user.total_races },
     bestTimes,
+    achievementsData: progress.achievements_data || '',
+    upgradesData: progress.upgrades_data || '',
   });
 }

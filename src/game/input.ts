@@ -11,6 +11,12 @@ export const I: InputState = {
   space: false,
 };
 
+// Arrow key state for keyboard steering
+export let arrowLeft = false;
+export let arrowRight = false;
+export let arrowUp = false;
+export let arrowDown = false;
+
 export const mob = matchMedia('(pointer:coarse)').matches;
 
 const cd = document.getElementById('cdot') as HTMLElement;
@@ -27,11 +33,16 @@ if (mob) {
 
 export function isUI(el: Element | null): boolean {
   return !!el && !!(
-    el.closest('.theme-item') || el.closest('.nav-section') ||
+    el.closest('.nav-section') ||
     el.closest('.globe-btn') || el.closest('.stats-panel') ||
     el.closest('.ach-badge') || el.closest('.ach-popup') ||
     el.closest('.sound-btn') || el.closest('.contact-btn') ||
-    el.closest('.contact-overlay') || el.closest('.welcome-screen')
+    el.closest('.contact-overlay') || el.closest('.welcome-screen') ||
+    el.closest('.profile-btn') || el.closest('.profile-panel') ||
+    el.closest('.leaderboard-btn') || el.closest('.leaderboard-panel') ||
+    el.closest('.shop-btn') || el.closest('.shop-panel') ||
+    el.closest('.main-menu') || el.closest('.track-select') ||
+    el.closest('.post-race') || el.closest('.fullpage-screen')
   );
 }
 
@@ -50,8 +61,6 @@ export function setupInputListeners(
   document.addEventListener('mousedown', (e) => {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     if (isUI(el)) {
-      const tb = el!.closest('.theme-item') as HTMLElement | null;
-      if (tb) onTheme(+tb.dataset.theme!);
       const ns = el!.closest('.nav-section') as HTMLElement | null;
       if (ns) onNav(+ns.dataset.idx!);
       return;
@@ -81,8 +90,6 @@ export function setupInputListeners(
     if (!t) return;
     const el = document.elementFromPoint(t.clientX, t.clientY);
     if (isUI(el)) {
-      const tb = el!.closest('.theme-item') as HTMLElement | null;
-      if (tb) onTheme(+tb.dataset.theme!);
       const ns = el!.closest('.nav-section') as HTMLElement | null;
       if (ns) onNav(+ns.dataset.idx!);
       return;
@@ -101,9 +108,17 @@ export function setupInputListeners(
 
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') { e.preventDefault(); I.space = true; }
+    if (e.code === 'ArrowLeft') { e.preventDefault(); arrowLeft = true; }
+    if (e.code === 'ArrowRight') { e.preventDefault(); arrowRight = true; }
+    if (e.code === 'ArrowUp') { e.preventDefault(); arrowUp = true; if (!I.down) { I.down = true; onClick(); } }
+    if (e.code === 'ArrowDown') { e.preventDefault(); arrowDown = true; }
   });
   document.addEventListener('keyup', (e) => {
     if (e.code === 'Space') { I.space = false; }
+    if (e.code === 'ArrowLeft') { arrowLeft = false; }
+    if (e.code === 'ArrowRight') { arrowRight = false; }
+    if (e.code === 'ArrowUp') { arrowUp = false; if (!arrowDown) { I.down = false; I.holdTime = 0; onRelease(); } }
+    if (e.code === 'ArrowDown') { arrowDown = false; }
   });
 
   // Mobile wheelie button

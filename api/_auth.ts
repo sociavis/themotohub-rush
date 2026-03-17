@@ -1,4 +1,4 @@
-import { sql, initDB } from './_db';
+import { sql, initDB } from './_db.js';
 import type { VercelRequest } from '@vercel/node';
 
 export interface AuthUser {

@@ -13,7 +13,6 @@ export function applyTheme(idx: number): void {
   sndThemeSwitch();
   const t = THEMES[idx];
 
-  document.querySelectorAll('.theme-item').forEach((b, i) => b.classList.toggle('on', i === idx));
   document.documentElement.style.setProperty('--orange', rgba(t.primary, 1));
 
   let s = document.getElementById('dynamic-corners');
@@ -34,7 +33,6 @@ export function applyTheme(idx: number): void {
   document.querySelectorAll('.nav-track-fill').forEach(e => (e as HTMLElement).style.background = rgba(t.primary, 1));
   document.querySelectorAll('.nav-chevron path').forEach(e => e.setAttribute('fill', rgba(t.primary, 1)));
   document.querySelectorAll('.nav-label').forEach(e => (e as HTMLElement).style.color = rgba(t.primary, 1));
-  document.querySelectorAll('.theme-label').forEach(e => (e as HTMLElement).style.color = rgba(t.primary, 1));
 
   const cd = getCursorDot();
   const cr = getCursorRing();
@@ -47,10 +45,12 @@ export function applyTheme(idx: number): void {
   document.body.style.background = rgba(t.bg, 1);
   document.getElementById('wmLogo')!.style.color = rgba(t.primary, 1);
 
-  ['globeBtn', 'soundBtn', 'contactBtn'].forEach(id => {
-    const e = document.getElementById(id)!;
+  ['globeBtn', 'soundBtn', 'contactBtn', 'profileBtn', 'leaderboardBtn', 'shopBtn'].forEach(id => {
+    const e = document.getElementById(id);
+    if (!e) return;
     e.style.borderColor = rgba(t.primary, 0.2);
-    e.querySelector('svg')!.style.color = rgba(t.primary, 1);
+    const svg = e.querySelector('svg');
+    if (svg) svg.style.color = rgba(t.primary, 1);
   });
   const ml = document.querySelector('.mute-line') as HTMLElement | null;
   if (ml) ml.style.background = rgba(t.primary, 1);

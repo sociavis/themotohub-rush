@@ -24,12 +24,11 @@ export const achState: AchievementState = {
 };
 
 export const ACH_DEFS: AchievementDef[] = [
-  { id: 'st', icon: '◐', name: 'Stylist', desc: 'Try all 3 themes', diff: 'easy', check: () => achState.themesUsed.size >= 3 },
   { id: 'mx1', icon: '⚑', name: 'Rookie Rider', desc: 'Complete your first race', diff: 'easy', check: () => achState.mxRacesCompleted >= 1 },
   { id: 'mxd', icon: '☁', name: 'Dust Cloud', desc: 'Hit your first jump', diff: 'easy', check: () => achState.mxMaxAir > 0 },
   { id: 'mxa', icon: '↟', name: 'Hang Time', desc: 'Stay airborne 2+ seconds', diff: 'medium', check: () => achState.mxMaxAir >= 2 },
   { id: 'mx3', icon: '⟐', name: 'Track Master', desc: 'Complete all 3 tracks', diff: 'medium', check: () => achState.mxTracksCompleted >= 3 },
-  { id: 'mxb', icon: '⚡', name: 'Berm Blaster', desc: 'Hit 10 berms at speed', diff: 'medium', check: () => achState.mxBermHits >= 10 },
+  { id: 'mxb', icon: '⤻', name: 'Berm Blaster', desc: 'Hit 10 berms at speed', diff: 'medium', check: () => achState.mxBermHits >= 10 },
   { id: 'p3', icon: '◷', name: 'Endurance', desc: 'Stay 3 minutes', diff: 'medium', check: () => achState.elapsed >= 180 },
   { id: 'mxf', icon: '⏱', name: 'Speed Demon', desc: 'Finish a race under 40s', diff: 'hard', check: () => achState.mxBestTime > 0 && achState.mxBestTime < 40 },
   { id: 'mxc', icon: '⊘', name: 'Clean Run', desc: 'Finish without leaving track', diff: 'hard', check: () => achState.mxCleanLaps >= 1 },
@@ -52,7 +51,47 @@ export function getDiffColor(diff: string): [number, number, number] {
 const achTray = document.getElementById('achTray')!;
 let activePopup: HTMLElement | null = null;
 
+// ── Persistence ──
+export function saveAchState(): void {
+  try {
+    localStorage.setItem('mx_achstate', JSON.stringify({
+      unlocked: [...achState.unlocked],
+      mxRacesCompleted: achState.mxRacesCompleted,
+      mxLaps: achState.mxLaps,
+      mxMaxAir: achState.mxMaxAir,
+      mxBestTime: achState.mxBestTime,
+      mxCleanLaps: achState.mxCleanLaps,
+      mxTracksCompleted: achState.mxTracksCompleted,
+      mxBermHits: achState.mxBermHits,
+    }));
+  } catch {}
+}
+
+export function loadAchState(): void {
+  try {
+    const saved = localStorage.getItem('mx_achstate');
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data.unlocked) for (const id of data.unlocked) achState.unlocked.add(id);
+      if (data.mxRacesCompleted) achState.mxRacesCompleted = Math.max(achState.mxRacesCompleted, data.mxRacesCompleted);
+      if (data.mxLaps) achState.mxLaps = Math.max(achState.mxLaps, data.mxLaps);
+      if (data.mxMaxAir) achState.mxMaxAir = Math.max(achState.mxMaxAir, data.mxMaxAir);
+      if (data.mxBestTime) achState.mxBestTime = data.mxBestTime > 0 ? (achState.mxBestTime > 0 ? Math.min(achState.mxBestTime, data.mxBestTime) : data.mxBestTime) : achState.mxBestTime;
+      if (data.mxCleanLaps) achState.mxCleanLaps = Math.max(achState.mxCleanLaps, data.mxCleanLaps);
+      if (data.mxTracksCompleted) achState.mxTracksCompleted = Math.max(achState.mxTracksCompleted, data.mxTracksCompleted);
+      if (data.mxBermHits) achState.mxBermHits = Math.max(achState.mxBermHits, data.mxBermHits);
+      // Re-add badges for previously unlocked achievements (without toast)
+      for (const a of ACH_DEFS) {
+        if (achState.unlocked.has(a.id)) addBadge(a);
+      }
+    }
+  } catch {}
+}
+
+let lastSaveTime = 0;
+
 export function checkAch(): void {
+  let newUnlock = false;
   for (const a of ACH_DEFS) {
     if (achState.unlocked.has(a.id)) continue;
     if (a.check()) {
@@ -60,7 +99,14 @@ export function checkAch(): void {
       a.sec = SECTION_NAMES[0];
       showToast(a);
       addBadge(a);
+      newUnlock = true;
     }
+  }
+  // Save immediately on new unlock, or every 10 seconds for counters
+  const now = Date.now();
+  if (newUnlock || now - lastSaveTime > 10000) {
+    saveAchState();
+    lastSaveTime = now;
   }
 }
 
@@ -78,7 +124,7 @@ function showToast(a: AchievementDef): void {
   e.style.color = rgba(dc, 1);
   e.style.background = rgba(t.bg, 0.85);
   e.style.top = (130 + _toastOffset()) + 'px';
-  e.innerHTML = `<span class="toast-icon">${a.icon}</span><span class="toast-name">${a.name}</span><span class="toast-sep" style="background:${rgba(dc, 0.4)}"></span><span class="toast-desc">${a.desc}</span>`;
+  e.innerHTML = `<span class="toast-icon">${a.icon}</span><span class="toast-name">${a.name}</span><span class="toast-sep" style="background:${rgba(dc, 0.4)}"></span><span class="toast-desc">${a.desc}</span><span class="toast-reward" style="color:${rgba(dc, 0.8)}">◉ 75</span>`;
   document.getElementById('hero')!.appendChild(e);
   setTimeout(() => e.remove(), 3200);
 }
@@ -99,8 +145,11 @@ export function showWRToast(trackName: string, lapTime: number, isGlobal: boolea
 }
 
 function addBadge(a: AchievementDef): void {
+  // Skip if badge already exists
+  if (achTray.querySelector(`.ach-badge[data-ach-id="${a.id}"]`)) return;
   const e = document.createElement('div');
   e.className = 'ach-badge ach-' + a.diff;
+  e.dataset.achId = a.id;
   e.dataset.diffOrder = String(DIFF_ORDER[a.diff]);
   e.dataset.diff = a.diff;
   const dc = getDiffColor(a.diff);
@@ -145,6 +194,40 @@ function addBadge(a: AchievementDef): void {
 
 export function closePop(): void {
   if (activePopup) { activePopup.remove(); activePopup = null; }
+}
+
+export function mergeServerAchievements(serverDataStr: string): void {
+  if (!serverDataStr) return;
+  try {
+    const data = JSON.parse(serverDataStr);
+    if (data.unlocked) for (const id of data.unlocked) achState.unlocked.add(id);
+    if (data.mxRacesCompleted) achState.mxRacesCompleted = Math.max(achState.mxRacesCompleted, data.mxRacesCompleted);
+    if (data.mxLaps) achState.mxLaps = Math.max(achState.mxLaps, data.mxLaps);
+    if (data.mxMaxAir) achState.mxMaxAir = Math.max(achState.mxMaxAir, data.mxMaxAir);
+    if (data.mxBestTime) achState.mxBestTime = data.mxBestTime > 0 ? (achState.mxBestTime > 0 ? Math.min(achState.mxBestTime, data.mxBestTime) : data.mxBestTime) : achState.mxBestTime;
+    if (data.mxCleanLaps) achState.mxCleanLaps = Math.max(achState.mxCleanLaps, data.mxCleanLaps);
+    if (data.mxTracksCompleted) achState.mxTracksCompleted = Math.max(achState.mxTracksCompleted, data.mxTracksCompleted);
+    if (data.mxBermHits) achState.mxBermHits = Math.max(achState.mxBermHits, data.mxBermHits);
+    // Re-add badges for merged achievements
+    for (const a of ACH_DEFS) {
+      if (achState.unlocked.has(a.id)) addBadge(a);
+    }
+    // Save the merged state back to localStorage
+    saveAchState();
+  } catch {}
+}
+
+export function getAchSaveData(): object {
+  return {
+    unlocked: [...achState.unlocked],
+    mxRacesCompleted: achState.mxRacesCompleted,
+    mxLaps: achState.mxLaps,
+    mxMaxAir: achState.mxMaxAir,
+    mxBestTime: achState.mxBestTime,
+    mxCleanLaps: achState.mxCleanLaps,
+    mxTracksCompleted: achState.mxTracksCompleted,
+    mxBermHits: achState.mxBermHits,
+  };
 }
 
 export function recolorBadges(): void {

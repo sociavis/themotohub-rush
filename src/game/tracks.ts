@@ -5,15 +5,23 @@ export const MX_TRACKS: TrackDef[] = [
     name: 'DUST BOWL',
     envColor: [255, 145, 40],
     envType: 'desert',
+    // Flowing loop inspired by heightmap — wide right sweep, tight left return
     pts: [
-      [0, 0], [12, 5], [26, 7], [38, 4], [42, -4],
-      [38, -14], [26, -19], [12, -18], [0, -12], [-4, -5],
+      [0, 0], [6, 6], [16, 12], [28, 14], [40, 10],
+      [48, 2], [50, -10], [44, -20], [32, -26],
+      [18, -24], [8, -18], [2, -10], [-4, -4],
     ],
     obs: [
-      { type: 'hill', at: 0.10, h: 2.4, len: 0.16 },
-      { type: 'berm', at: 0.32, side: 1 },
-      { type: 'hill', at: 0.52, h: 2.6, len: 0.16 },
-      { type: 'berm', at: 0.74, side: -1 },
+      // Rolling terrain matching heightmap elevation profile
+      { type: 'hill', at: 0.04, h: 1.6, len: 0.08 },   // Small rise off start
+      { type: 'hill', at: 0.13, h: 3.4, len: 0.16 },   // Big peak (top-left bright area)
+      { type: 'berm', at: 0.30, side: 1 },              // Right berm into descent
+      { type: 'hill', at: 0.34, h: 1.8, len: 0.09 },   // Roller in the S-curve
+      { type: 'hill', at: 0.46, h: 2.6, len: 0.14 },   // Second peak (right-side bright area)
+      { type: 'berm', at: 0.62, side: -1 },             // Left berm at bottom sweep
+      { type: 'hill', at: 0.66, h: 2.2, len: 0.12 },   // Rise through bottom curve
+      { type: 'hill', at: 0.80, h: 1.4, len: 0.08 },   // Small roller on return
+      { type: 'berm', at: 0.90, side: 1 },              // Berm into finish
     ],
   },
   {
@@ -57,59 +65,67 @@ export const MX_TRACKS: TrackDef[] = [
     name: 'VOLCANIC RIDGE',
     envColor: [255, 60, 20],
     envType: 'volcanic',
+    // Figure-8 crossover layout
     pts: [
-      [0, 0], [14, 8], [30, 14], [48, 10], [58, 0],
-      [62, -16], [52, -28], [36, -34], [18, -30], [6, -20], [-2, -8],
+      [0, 0], [16, 8], [32, 4], [40, -8], [32, -20],
+      [16, -16], [0, -24], [-16, -20], [-24, -8],
+      [-16, 4], [-8, 12], [0, 8],
     ],
     obs: [
-      { type: 'hill', at: 0.07, h: 3.0, len: 0.15 },
-      { type: 'berm', at: 0.20, side: 1 },
-      { type: 'hill', at: 0.34, h: 2.4, len: 0.14 },
-      { type: 'berm', at: 0.48, side: -1 },
-      { type: 'hill', at: 0.60, h: 3.2, len: 0.16 },
-      { type: 'berm', at: 0.75, side: 1 },
-      { type: 'hill', at: 0.88, h: 2.0, len: 0.12 },
+      { type: 'hill', at: 0.05, h: 3.0, len: 0.14 },
+      { type: 'berm', at: 0.15, side: 1 },
+      { type: 'hill', at: 0.28, h: 2.4, len: 0.13 },
+      { type: 'berm', at: 0.38, side: -1 },
+      { type: 'hill', at: 0.50, h: 3.2, len: 0.15 },
+      { type: 'berm', at: 0.62, side: 1 },
+      { type: 'hill', at: 0.75, h: 2.6, len: 0.13 },
+      { type: 'berm', at: 0.88, side: -1 },
     ],
   },
   {
     name: 'RAINFOREST',
     envColor: [30, 200, 80],
     envType: 'jungle',
+    // Tight S-curves with switchbacks
     pts: [
-      [0, 0], [10, 8], [24, 16], [40, 18], [54, 12],
-      [62, 0], [58, -14], [44, -24], [28, -28], [14, -24],
-      [4, -16], [-6, -6],
+      [0, 0], [18, 4], [30, 14], [20, 24], [4, 20],
+      [-8, 10], [-4, -4], [12, -12], [28, -8], [36, -20],
+      [24, -30], [6, -26], [-6, -14],
     ],
     obs: [
-      { type: 'hill', at: 0.06, h: 2.2, len: 0.13 },
-      { type: 'berm', at: 0.16, side: -1 },
-      { type: 'hill', at: 0.28, h: 2.6, len: 0.14 },
-      { type: 'berm', at: 0.38, side: 1 },
-      { type: 'hill', at: 0.50, h: 1.8, len: 0.11 },
-      { type: 'berm', at: 0.62, side: -1 },
-      { type: 'hill', at: 0.74, h: 2.4, len: 0.13 },
-      { type: 'berm', at: 0.86, side: 1 },
+      { type: 'hill', at: 0.06, h: 2.2, len: 0.12 },
+      { type: 'berm', at: 0.14, side: -1 },
+      { type: 'hill', at: 0.24, h: 2.6, len: 0.13 },
+      { type: 'berm', at: 0.32, side: 1 },
+      { type: 'berm', at: 0.44, side: -1 },
+      { type: 'hill', at: 0.52, h: 1.8, len: 0.11 },
+      { type: 'berm', at: 0.62, side: 1 },
+      { type: 'hill', at: 0.72, h: 2.4, len: 0.13 },
+      { type: 'berm', at: 0.82, side: -1 },
+      { type: 'hill', at: 0.92, h: 2.0, len: 0.11 },
     ],
   },
   {
     name: 'MIDNIGHT STADIUM',
     envColor: [180, 100, 255],
     envType: 'stadium',
+    // Technical layout with tight infield section
     pts: [
-      [0, 0], [18, 6], [36, 10], [52, 6], [60, -4],
-      [56, -18], [44, -26], [28, -30], [12, -26],
-      [0, -18], [-8, -8],
+      [0, 0], [24, 2], [40, 10], [44, 24], [32, 30],
+      [16, 24], [8, 14], [16, 4], [28, -4], [36, -16],
+      [24, -28], [8, -24], [-4, -14], [-8, -4],
     ],
     obs: [
-      { type: 'hill', at: 0.05, h: 2.8, len: 0.14 },
-      { type: 'berm', at: 0.14, side: 1 },
-      { type: 'hill', at: 0.24, h: 2.2, len: 0.12 },
-      { type: 'hill', at: 0.36, h: 3.0, len: 0.15 },
-      { type: 'berm', at: 0.48, side: -1 },
-      { type: 'hill', at: 0.58, h: 2.4, len: 0.13 },
-      { type: 'berm', at: 0.68, side: 1 },
-      { type: 'hill', at: 0.78, h: 2.6, len: 0.14 },
-      { type: 'berm', at: 0.90, side: -1 },
+      { type: 'hill', at: 0.04, h: 2.8, len: 0.13 },
+      { type: 'berm', at: 0.12, side: 1 },
+      { type: 'hill', at: 0.22, h: 2.2, len: 0.11 },
+      { type: 'berm', at: 0.30, side: -1 },
+      { type: 'hill', at: 0.38, h: 3.0, len: 0.14 },
+      { type: 'berm', at: 0.48, side: 1 },
+      { type: 'hill', at: 0.56, h: 2.4, len: 0.12 },
+      { type: 'berm', at: 0.66, side: -1 },
+      { type: 'hill', at: 0.76, h: 2.6, len: 0.13 },
+      { type: 'berm', at: 0.88, side: 1 },
     ],
   },
 ];
