@@ -1,30 +1,16 @@
 import * as THREE from 'three';
 import type { Theme, RGB } from './types';
 
+// Single motocross palette — moto orange, dirt neutrals, race red.
+// (Old neon themes removed as part of the realistic-MX overhaul.)
 export const THEMES: Theme[] = [
   {
-    name: 'INFERNO',
-    primary: [255, 100, 0],
-    secondary: [0, 229, 255],
-    accent: [255, 34, 68],
-    bg: [6, 10, 16],
-    grid: [0, 229, 255],
-  },
-  {
-    name: 'ARCTIC',
-    primary: [0, 229, 255],
-    secondary: [124, 77, 255],
-    accent: [255, 100, 200],
-    bg: [4, 8, 18],
-    grid: [124, 77, 255],
-  },
-  {
-    name: 'VENOM',
-    primary: [57, 255, 20],
-    secondary: [0, 229, 255],
-    accent: [255, 230, 0],
-    bg: [4, 12, 8],
-    grid: [0, 229, 255],
+    name: 'MOTO',
+    primary: [255, 90, 10],     // moto orange
+    secondary: [255, 240, 220], // warm white (HUD values)
+    accent: [227, 30, 36],      // race red
+    bg: [16, 13, 10],           // dark earth
+    grid: [120, 90, 60],        // unused (legacy)
   },
 ];
 

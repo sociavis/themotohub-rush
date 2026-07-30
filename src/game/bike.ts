@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { T, tC } from './themes';
 import type { BikeState } from './types';
+import { makePlateTexture } from './textures';
 
-// ── Bike State ──
+// ── Bike State (gameplay) ──
 export const mxBike: BikeState = {
   t: 0, lat: 0, speed: 0, maxSpeed: 16, accel: 12, brake: 8,
   turnSpeed: 3.8, angle: 0, airborne: false, jumpVel: 0, hOff: 0,
@@ -10,544 +10,367 @@ export const mxBike: BikeState = {
   wheelie: false, wheelieBalance: 0, wheelieTime: 0,
 };
 
-// ── Motocross Dirt Bike Model ──
-// Rebuilt from scratch as a proper MX / motocross bike
-// Reference: low-poly Kawasaki KX-style dirtbike
-export const bikeGroup = new THREE.Group();
-
-// ── Materials ──
-const bodyMat = new THREE.MeshStandardMaterial({
-  color: tC(T().primary), emissive: tC(T().primary),
-  emissiveIntensity: 0.7, metalness: 0.7, roughness: 0.3,
-});
-const frameMat = new THREE.MeshStandardMaterial({
-  color: 0x999999, metalness: 0.85, roughness: 0.15,
-});
-const darkMat = new THREE.MeshStandardMaterial({
-  color: 0x1a1a1a, metalness: 0.3, roughness: 0.85,
-});
-const chromeMat = new THREE.MeshStandardMaterial({
-  color: 0xcccccc, metalness: 0.92, roughness: 0.08,
-});
-const tireMat = new THREE.MeshStandardMaterial({
-  color: 0x111111, metalness: 0.1, roughness: 0.95,
-});
-const whiteMat = new THREE.MeshStandardMaterial({
-  color: 0xeeeeee, roughness: 0.55, metalness: 0.1,
-});
-const engineMat = new THREE.MeshStandardMaterial({
-  color: 0x555555, metalness: 0.75, roughness: 0.35,
-});
-const seatMat = new THREE.MeshStandardMaterial({
-  color: 0x1a1a1a, metalness: 0.15, roughness: 0.9,
-});
-
-// ═══════════════════════════════════════
-// FRAME — Perimeter cradle frame
-// ═══════════════════════════════════════
-
-// Steering head / headstock (where forks pivot)
-const headstock = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.08, 8), frameMat.clone());
-headstock.position.set(0, 0.2, 0.22);
-headstock.rotation.x = -0.45;
-bikeGroup.add(headstock);
-
-// Main beam — headstock down to swingarm pivot (backbone)
-const mainBeamL = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.48, 6), frameMat.clone());
-mainBeamL.rotation.x = -0.18;
-mainBeamL.position.set(0.035, 0.14, 0.02);
-bikeGroup.add(mainBeamL);
-const mainBeamR = mainBeamL.clone();
-mainBeamR.position.x = -0.035;
-bikeGroup.add(mainBeamR);
-
-// Down tubes — from headstock area down to engine cradle
-const downTubeL = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 6), frameMat.clone());
-downTubeL.rotation.x = 0.55;
-downTubeL.position.set(0.035, 0.06, 0.16);
-bikeGroup.add(downTubeL);
-const downTubeR = downTubeL.clone();
-downTubeR.position.x = -0.035;
-bikeGroup.add(downTubeR);
-
-// Lower cradle — under engine
-const lowerCradleL = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.2, 6), frameMat.clone());
-lowerCradleL.rotation.x = Math.PI / 2;
-lowerCradleL.position.set(0.035, -0.08, 0.02);
-bikeGroup.add(lowerCradleL);
-const lowerCradleR = lowerCradleL.clone();
-lowerCradleR.position.x = -0.035;
-bikeGroup.add(lowerCradleR);
-
-// Subframe / seat rails — extend rearward from main frame
-const seatRailL = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.38, 6), frameMat.clone());
-seatRailL.rotation.x = -0.22;
-seatRailL.position.set(0.03, 0.14, -0.16);
-bikeGroup.add(seatRailL);
-const seatRailR = seatRailL.clone();
-seatRailR.position.x = -0.03;
-bikeGroup.add(seatRailR);
-
-// ═══════════════════════════════════════
-// ENGINE — Single-cylinder four-stroke
-// ═══════════════════════════════════════
-
-// Main engine cases
-const engineBlock = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 0.16), engineMat.clone());
-engineBlock.position.set(0, -0.01, 0.03);
-bikeGroup.add(engineBlock);
-
-// Cylinder (angled forward, MX style)
-const cylinder = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.06), engineMat.clone());
-cylinder.rotation.x = -0.6;
-cylinder.position.set(0, 0.08, 0.1);
-bikeGroup.add(cylinder);
-
-// Cylinder head / valve cover
-const valveCover = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.05), new THREE.MeshStandardMaterial({
-  color: 0x444444, metalness: 0.6, roughness: 0.3,
-}));
-valveCover.rotation.x = -0.6;
-valveCover.position.set(0, 0.14, 0.12);
-bikeGroup.add(valveCover);
-
-// Clutch cover (right side bulge)
-const clutchCover = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 12), engineMat.clone());
-clutchCover.rotation.z = Math.PI / 2;
-clutchCover.position.set(0.06, -0.02, 0.02);
-bikeGroup.add(clutchCover);
-
-// Stator cover (left side)
-const statorCover = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 12), engineMat.clone());
-statorCover.rotation.z = Math.PI / 2;
-statorCover.position.set(-0.06, -0.02, 0.02);
-bikeGroup.add(statorCover);
-
-// ═══════════════════════════════════════
-// FUEL TANK (body-colored, angular MX shape)
-// ═══════════════════════════════════════
-
-// Main tank body — narrow and tall MX style
-export const frame = new THREE.Mesh(
-  new THREE.BoxGeometry(0.12, 0.09, 0.22),
-  bodyMat.clone(),
-);
-frame.position.set(0, 0.22, 0.06);
-bikeGroup.add(frame);
-
-// Tank shrouds / radiator shrouds (angled body panels)
-const shroudL = new THREE.Mesh(
-  new THREE.BoxGeometry(0.012, 0.13, 0.2),
-  bodyMat.clone(),
-);
-shroudL.position.set(0.065, 0.16, 0.06);
-shroudL.rotation.z = 0.12;
-bikeGroup.add(shroudL);
-const shroudR = shroudL.clone();
-shroudR.position.x = -0.065;
-shroudR.rotation.z = -0.12;
-bikeGroup.add(shroudR);
-
-// Lower shroud extensions (radiator guard area)
-const lowerShroudL = new THREE.Mesh(
-  new THREE.BoxGeometry(0.01, 0.08, 0.12),
-  bodyMat.clone(),
-);
-lowerShroudL.position.set(0.06, 0.06, 0.1);
-bikeGroup.add(lowerShroudL);
-const lowerShroudR = lowerShroudL.clone();
-lowerShroudR.position.x = -0.06;
-bikeGroup.add(lowerShroudR);
-
-// ═══════════════════════════════════════
-// SEAT — Flat, narrow MX seat (dark colored)
-// ═══════════════════════════════════════
-
-export const seat = new THREE.Mesh(
-  new THREE.BoxGeometry(0.1, 0.03, 0.32),
-  seatMat.clone(),
-);
-seat.position.set(0, 0.22, -0.14);
-seat.rotation.x = 0.08;
-bikeGroup.add(seat);
-
-// ═══════════════════════════════════════
-// REAR FENDER (body-colored, sweeps up high)
-// ═══════════════════════════════════════
-
-const rearFender = new THREE.Mesh(
-  new THREE.BoxGeometry(0.09, 0.015, 0.2),
-  bodyMat.clone(),
-);
-rearFender.position.set(0, 0.24, -0.3);
-rearFender.rotation.x = 0.4;
-bikeGroup.add(rearFender);
-
-// Rear fender tail tip
-const fenderTail = new THREE.Mesh(
-  new THREE.BoxGeometry(0.06, 0.012, 0.06),
-  bodyMat.clone(),
-);
-fenderTail.position.set(0, 0.3, -0.42);
-fenderTail.rotation.x = 0.7;
-bikeGroup.add(fenderTail);
-
-// ═══════════════════════════════════════
-// FRONT FORKS — Long-travel USD inverted forks
-// ═══════════════════════════════════════
-
-const FORK_ANGLE = -0.42; // steeper rake for MX
-
-// Left fork — upper tube (thick, chrome/gold)
-const forkUpperL = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.32, 8), chromeMat.clone());
-forkUpperL.rotation.x = FORK_ANGLE;
-forkUpperL.position.set(0.045, 0.14, 0.3);
-bikeGroup.add(forkUpperL);
-
-// Left fork — lower tube (thinner, black)
-const forkLowerL = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.22, 8), darkMat.clone());
-forkLowerL.rotation.x = FORK_ANGLE;
-forkLowerL.position.set(0.045, -0.05, 0.4);
-bikeGroup.add(forkLowerL);
-
-// Right fork upper
-const forkUpperR = forkUpperL.clone();
-forkUpperR.position.x = -0.045;
-bikeGroup.add(forkUpperR);
-
-// Right fork lower
-const forkLowerR = forkLowerL.clone();
-forkLowerR.position.x = -0.045;
-bikeGroup.add(forkLowerR);
-
-// Fork guards (small colored sleeves)
-const forkGuardL = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.06, 8), bodyMat.clone());
-forkGuardL.rotation.x = FORK_ANGLE;
-forkGuardL.position.set(0.045, 0.02, 0.36);
-bikeGroup.add(forkGuardL);
-const forkGuardR = forkGuardL.clone();
-forkGuardR.position.x = -0.045;
-bikeGroup.add(forkGuardR);
-
-// Triple clamp (upper)
-const tripleUpper = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.015, 0.035), chromeMat.clone());
-tripleUpper.position.set(0, 0.28, 0.26);
-tripleUpper.rotation.x = FORK_ANGLE * 0.3;
-bikeGroup.add(tripleUpper);
-
-// Triple clamp (lower)
-const tripleLower = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.03), chromeMat.clone());
-tripleLower.position.set(0, 0.22, 0.28);
-tripleLower.rotation.x = FORK_ANGLE * 0.3;
-bikeGroup.add(tripleLower);
-
-// ═══════════════════════════════════════
-// FRONT FENDER — Tall-mounted between forks
-// ═══════════════════════════════════════
-
-const frontFender = new THREE.Mesh(
-  new THREE.BoxGeometry(0.065, 0.012, 0.18),
-  bodyMat.clone(),
-);
-frontFender.rotation.x = FORK_ANGLE;
-frontFender.position.set(0, 0.06, 0.39);
-bikeGroup.add(frontFender);
-
-// Fender sides for more 3D shape
-const fenderSideL = new THREE.Mesh(
-  new THREE.BoxGeometry(0.01, 0.04, 0.14),
-  bodyMat.clone(),
-);
-fenderSideL.rotation.x = FORK_ANGLE;
-fenderSideL.position.set(0.035, 0.05, 0.38);
-bikeGroup.add(fenderSideL);
-const fenderSideR = fenderSideL.clone();
-fenderSideR.position.x = -0.035;
-bikeGroup.add(fenderSideR);
-
-// ═══════════════════════════════════════
-// HANDLEBARS — Wide MX bars with crossbar & pad
-// ═══════════════════════════════════════
-
-// Bar mounts / risers
-const barMountL = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.04, 6), darkMat.clone());
-barMountL.position.set(0.025, 0.32, 0.24);
-bikeGroup.add(barMountL);
-const barMountR = barMountL.clone();
-barMountR.position.x = -0.025;
-bikeGroup.add(barMountR);
-
-// Left handlebar
-const barL = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.12, 6), darkMat.clone());
-barL.rotation.z = Math.PI / 2;
-barL.position.set(0.09, 0.34, 0.24);
-bikeGroup.add(barL);
-const barR = barL.clone();
-barR.position.x = -0.09;
-bikeGroup.add(barR);
-
-// Crossbar brace
-const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.14, 6), chromeMat.clone());
-crossbar.rotation.z = Math.PI / 2;
-crossbar.position.set(0, 0.36, 0.24);
-bikeGroup.add(crossbar);
-
-// Bar pad (body-colored foam pad)
-const barPad = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.022, 0.028), bodyMat.clone());
-barPad.position.set(0, 0.36, 0.24);
-bikeGroup.add(barPad);
-
-// Grips (rubber)
-const gripL = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.045, 6), darkMat.clone());
-gripL.rotation.z = Math.PI / 2;
-gripL.position.set(0.14, 0.34, 0.24);
-bikeGroup.add(gripL);
-const gripR = gripL.clone();
-gripR.position.x = -0.14;
-bikeGroup.add(gripR);
-
-// ═══════════════════════════════════════
-// NUMBER PLATE — Front (white)
-// ═══════════════════════════════════════
-
-const numberPlate = new THREE.Mesh(
-  new THREE.BoxGeometry(0.1, 0.1, 0.012),
-  whiteMat.clone(),
-);
-numberPlate.position.set(0, 0.24, 0.36);
-numberPlate.rotation.x = -0.25;
-bikeGroup.add(numberPlate);
-
-// ═══════════════════════════════════════
-// SIDE NUMBER PLATES (white panels on flanks)
-// ═══════════════════════════════════════
-
-const sidePlateL = new THREE.Mesh(
-  new THREE.BoxGeometry(0.012, 0.1, 0.16),
-  whiteMat.clone(),
-);
-sidePlateL.position.set(0.065, 0.13, -0.1);
-sidePlateL.rotation.z = 0.05;
-bikeGroup.add(sidePlateL);
-const sidePlateR = sidePlateL.clone();
-sidePlateR.position.x = -0.065;
-sidePlateR.rotation.z = -0.05;
-bikeGroup.add(sidePlateR);
-
-// ═══════════════════════════════════════
-// REAR SWINGARM — Longer for MX travel
-// ═══════════════════════════════════════
-
-const swingarmL = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.012, 0.38, 6), frameMat.clone());
-swingarmL.rotation.set(0, 0, 0.06);
-swingarmL.rotation.x = Math.PI / 2 + 0.05;
-swingarmL.position.set(0.04, -0.06, -0.22);
-bikeGroup.add(swingarmL);
-const swingarmR = swingarmL.clone();
-swingarmR.position.x = -0.04;
-swingarmR.rotation.z = -0.06;
-bikeGroup.add(swingarmR);
-
-// Swingarm pivot bolt
-const swingPivot = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.1, 8), chromeMat.clone());
-swingPivot.rotation.z = Math.PI / 2;
-swingPivot.position.set(0, -0.04, -0.04);
-bikeGroup.add(swingPivot);
-
-// ═══════════════════════════════════════
-// REAR SHOCK — Single shock, centrally mounted
-// ═══════════════════════════════════════
-
-const rearShock = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.01, 0.22, 6), chromeMat.clone());
-rearShock.rotation.x = -0.2;
-rearShock.position.set(0, 0.06, -0.16);
-bikeGroup.add(rearShock);
-
-// Shock spring (visible coil — use a torus for the ring effect)
-const shockSpring = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.1, 8), new THREE.MeshStandardMaterial({
-  color: 0xddcc00, metalness: 0.8, roughness: 0.2,
-}));
-shockSpring.rotation.x = -0.2;
-shockSpring.position.set(0, 0.04, -0.15);
-bikeGroup.add(shockSpring);
-
-// ═══════════════════════════════════════
-// EXHAUST — Header pipe sweeps down, silencer mounts high
-// ═══════════════════════════════════════
-
-// Header pipe from cylinder
-const exhaustHeader = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.014, 0.16, 8), chromeMat.clone());
-exhaustHeader.rotation.x = 0.5;
-exhaustHeader.position.set(0.055, 0.01, 0.1);
-bikeGroup.add(exhaustHeader);
-
-// Mid pipe (goes under and back)
-const exhaustMid = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.016, 0.22, 8), chromeMat.clone());
-exhaustMid.rotation.x = Math.PI / 2 + 0.15;
-exhaustMid.position.set(0.055, -0.06, -0.04);
-bikeGroup.add(exhaustMid);
-
-// Silencer (high-mounted MX style on right side)
-const silencer = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.024, 0.18, 8), new THREE.MeshStandardMaterial({
-  color: 0x3a3a3a, metalness: 0.5, roughness: 0.45,
-}));
-silencer.rotation.x = -0.08;
-silencer.position.set(0.065, 0.1, -0.2);
-bikeGroup.add(silencer);
-
-// Silencer end cap
-const silencerCap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.02, 0.02, 8), chromeMat.clone());
-silencerCap.rotation.x = -0.08;
-silencerCap.position.set(0.065, 0.11, -0.29);
-bikeGroup.add(silencerCap);
-
-// ═══════════════════════════════════════
-// CHAIN & SPROCKETS
-// ═══════════════════════════════════════
-
-// Chain run (visual)
-const chain = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.006, 0.38), darkMat.clone());
-chain.position.set(0.03, -0.1, -0.16);
-bikeGroup.add(chain);
-
-// Front sprocket (small, at engine)
-const fSprocket = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.005, 6, 10), chromeMat.clone());
-fSprocket.rotation.y = Math.PI / 2;
-fSprocket.position.set(0.03, -0.07, 0.0);
-bikeGroup.add(fSprocket);
-
-// Chain guide (on swingarm)
-const chainGuide = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.012, 0.2), darkMat.clone());
-chainGuide.position.set(0.03, -0.1, -0.26);
-bikeGroup.add(chainGuide);
-
-// ═══════════════════════════════════════
-// FRONT WHEEL — 21" MX with knobby tire
-// ═══════════════════════════════════════
-
-export const fWheelGroup = new THREE.Group();
-fWheelGroup.position.set(0, -0.12, 0.5);
-
-// Knobby tire (torus — slightly wider for MX)
-const fTire = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.042, 10, 24), tireMat.clone());
-fTire.rotation.y = Math.PI / 2;
-fWheelGroup.add(fTire);
-
-// Hub
-const fHub = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.05, 12), chromeMat.clone());
-fHub.rotation.z = Math.PI / 2;
-fWheelGroup.add(fHub);
-
-// Brake rotor
-const fBrake = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.008, 4, 16), chromeMat.clone());
-fBrake.rotation.y = Math.PI / 2;
-fBrake.position.set(0.025, 0, 0);
-fWheelGroup.add(fBrake);
-
-// Spokes (crossed pattern — 12 spokes for more realism)
-for (let i = 0; i < 12; i++) {
-  const angle = (i / 12) * Math.PI * 2;
-  const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.14, 4), chromeMat.clone());
-  spoke.position.set(0, Math.sin(angle) * 0.085, Math.cos(angle) * 0.085);
-  spoke.rotation.x = angle + (i % 2 === 0 ? 0.15 : -0.15);
-  fWheelGroup.add(spoke);
-}
-
-bikeGroup.add(fWheelGroup);
-
-// ═══════════════════════════════════════
-// REAR WHEEL — 19" MX with wider knobby
-// ═══════════════════════════════════════
-
-export const rWheelGroup = new THREE.Group();
-rWheelGroup.position.set(0, -0.12, -0.42);
-
-// Wider knobby tire
-const rTire = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 10, 22), tireMat.clone());
-rTire.rotation.y = Math.PI / 2;
-rWheelGroup.add(rTire);
-
-// Hub
-const rHub = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.055, 12), chromeMat.clone());
-rHub.rotation.z = Math.PI / 2;
-rWheelGroup.add(rHub);
-
-// Rear sprocket (larger)
-const rSprocket = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.007, 6, 14), chromeMat.clone());
-rSprocket.rotation.y = Math.PI / 2;
-rSprocket.position.set(0.028, 0, 0);
-rWheelGroup.add(rSprocket);
-
-// Brake rotor
-const rBrake = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.006, 4, 14), chromeMat.clone());
-rBrake.rotation.y = Math.PI / 2;
-rBrake.position.set(-0.025, 0, 0);
-rWheelGroup.add(rBrake);
-
-// Spokes (12 crossed)
-for (let i = 0; i < 12; i++) {
-  const angle = (i / 12) * Math.PI * 2;
-  const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.12, 4), chromeMat.clone());
-  spoke.position.set(0, Math.sin(angle) * 0.075, Math.cos(angle) * 0.075);
-  spoke.rotation.x = angle + (i % 2 === 0 ? 0.15 : -0.15);
-  rWheelGroup.add(spoke);
-}
-
-bikeGroup.add(rWheelGroup);
-
-// ═══════════════════════════════════════
-// FOOTPEGS — Wide MX pegs
-// ═══════════════════════════════════════
-
-const pegL = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.04, 6), chromeMat.clone());
-pegL.rotation.z = Math.PI / 2;
-pegL.position.set(0.065, -0.08, -0.02);
-bikeGroup.add(pegL);
-const pegR = pegL.clone();
-pegR.position.x = -0.065;
-bikeGroup.add(pegR);
-
-// Peg mounts
-const pegMountL = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.025, 0.015), frameMat.clone());
-pegMountL.position.set(0.045, -0.07, -0.02);
-bikeGroup.add(pegMountL);
-const pegMountR = pegMountL.clone();
-pegMountR.position.x = -0.045;
-bikeGroup.add(pegMountR);
-
-// ═══════════════════════════════════════
-// KICK STARTER
-// ═══════════════════════════════════════
-
-const kickStart = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.07, 6), chromeMat.clone());
-kickStart.rotation.z = 0.7;
-kickStart.position.set(0.07, -0.06, -0.06);
-bikeGroup.add(kickStart);
-
-// ═══════════════════════════════════════
-// SKID PLATE (engine guard)
-// ═══════════════════════════════════════
-
-const skidPlate = new THREE.Mesh(
-  new THREE.BoxGeometry(0.09, 0.01, 0.16),
-  new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.6, roughness: 0.4 }),
-);
-skidPlate.position.set(0, -0.1, 0.02);
-bikeGroup.add(skidPlate);
-
-// ═══════════════════════════════════════
-// Configure group
-// ═══════════════════════════════════════
-
-bikeGroup.visible = false;
-bikeGroup.scale.setScalar(1.3);
-bikeGroup.renderOrder = 1;
-// YXZ order: heading (Y) in world, tilt (X) and lean (Z) in bike's local frame
-bikeGroup.rotation.order = 'YXZ';
-
 export function resetBike(): void {
   mxBike.t = 0; mxBike.lat = 0; mxBike.speed = 0; mxBike.angle = 0;
   mxBike.airborne = false; mxBike.jumpVel = 0; mxBike.hOff = 0;
   mxBike.lean = 0; mxBike.driftFactor = 0; mxBike.suspBob = 0;
   mxBike.wheelie = false; mxBike.wheelieBalance = 0; mxBike.wheelieTime = 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PROCEDURAL MX BIKE — shared factory used by the game and the
+//  garage preview. Built at world scale: tire contact at y=-0.35,
+//  wheelbase 1.2, front axle z=+0.62, rear axle z=-0.58.
+// ═══════════════════════════════════════════════════════════════
+
+export type BikePart = 'tires' | 'engine' | 'gearbox' | 'suspension' | 'body';
+
+export interface BikeRefs {
+  group: THREE.Group;
+  frontEnd: THREE.Group;    // steering head assembly (rotated to rake angle)
+  frontSlider: THREE.Group; // lower fork legs + front wheel — slides for travel
+  fWheel: THREE.Group;
+  rearSwing: THREE.Group;   // swingarm pivot group — rotates for travel
+  rWheel: THREE.Group;
+  bars: THREE.Group;
+  bodyMats: THREE.MeshStandardMaterial[];
+  partMap: Record<BikePart, THREE.Mesh[]>;
+  tankMesh: THREE.Mesh;
+  seatMesh: THREE.Mesh;
+}
+
+const Y_UP = new THREE.Vector3(0, 1, 0);
+
+function tube(from: [number, number, number], to: [number, number, number], r: number, mat: THREE.Material, seg = 8): THREE.Mesh {
+  const a = new THREE.Vector3(...from);
+  const b = new THREE.Vector3(...to);
+  const dir = new THREE.Vector3().subVectors(b, a);
+  const len = dir.length();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg), mat);
+  m.position.copy(a).addScaledVector(dir, 0.5);
+  m.quaternion.setFromUnitVectors(Y_UP, dir.normalize());
+  return m;
+}
+
+function box(w: number, h: number, d: number, mat: THREE.Material): THREE.Mesh {
+  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+}
+
+export function createBikeModel(bodyColor: THREE.Color | number = 0xff5a0a, plateNum = '7'): BikeRefs {
+  const group = new THREE.Group();
+  const bodyMats: THREE.MeshStandardMaterial[] = [];
+  const partMap: Record<BikePart, THREE.Mesh[]> = { tires: [], engine: [], gearbox: [], suspension: [], body: [] };
+
+  // ── Materials ──
+  const mkBody = () => {
+    const m = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.35, metalness: 0.05 });
+    bodyMats.push(m);
+    return m;
+  };
+  const bodyMat = mkBody();
+  const whitePlastic = new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.5, metalness: 0.02 });
+  const blackPlastic = new THREE.MeshStandardMaterial({ color: 0x1d1d20, roughness: 0.7, metalness: 0.05 });
+  const rubber = new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.95, metalness: 0 });
+  const alu = new THREE.MeshStandardMaterial({ color: 0xaab0b6, roughness: 0.32, metalness: 0.85 });
+  const gold = new THREE.MeshStandardMaterial({ color: 0xc8a34a, roughness: 0.28, metalness: 0.85 });
+  const steelDark = new THREE.MeshStandardMaterial({ color: 0x4a4e54, roughness: 0.42, metalness: 0.7 });
+  const engineAlu = new THREE.MeshStandardMaterial({ color: 0x84888e, roughness: 0.45, metalness: 0.8 });
+  const seatMat = new THREE.MeshStandardMaterial({ color: 0x232326, roughness: 0.95, metalness: 0 });
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 0.45, metalness: 0.6 });
+  const plateTex = makePlateTexture(plateNum);
+  const plateMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: plateTex, roughness: 0.5 });
+
+  const add = (m: THREE.Mesh, part: BikePart, parent: THREE.Object3D = group, shadow = true): THREE.Mesh => {
+    m.castShadow = shadow;
+    parent.add(m);
+    partMap[part].push(m);
+    return m;
+  };
+
+  // ── Wheels ──
+  function makeWheel(R: number, minor: number, isFront: boolean): THREE.Group {
+    const w = new THREE.Group();
+    const tire = new THREE.Mesh(new THREE.TorusGeometry(R - minor, minor, 12, 28), rubber);
+    tire.rotation.y = Math.PI / 2;
+    tire.castShadow = true;
+    w.add(tire);
+    partMap.tires.push(tire);
+    // knob blocks — center row + staggered side rows
+    const knobGeo = new THREE.BoxGeometry(minor * 1.7, 0.028, 0.03);
+    for (let i = 0; i < 20; i++) {
+      const a = (i / 20) * Math.PI * 2;
+      const kn = new THREE.Mesh(knobGeo, rubber);
+      const kr = R - 0.012;
+      kn.position.set(0, Math.sin(a) * kr, Math.cos(a) * kr);
+      kn.rotation.x = -a;
+      w.add(kn);
+      partMap.tires.push(kn);
+      const side = new THREE.Mesh(knobGeo, rubber);
+      const a2 = a + Math.PI / 20;
+      side.position.set(i % 2 === 0 ? minor * 0.75 : -minor * 0.75, Math.sin(a2) * (kr - 0.006), Math.cos(a2) * (kr - 0.006));
+      side.rotation.x = -a2;
+      side.scale.set(0.6, 0.9, 0.9);
+      w.add(side);
+      partMap.tires.push(side);
+    }
+    // rim + spokes + hub
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(R - 0.075, 0.013, 8, 24), blackPlastic);
+    rim.rotation.y = Math.PI / 2;
+    w.add(rim);
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, R - 0.08, 4), alu);
+      const mid = (R - 0.08) / 2 + 0.028;
+      sp.position.set(i % 2 === 0 ? 0.012 : -0.012, Math.sin(a) * mid, Math.cos(a) * mid);
+      sp.rotation.x = a + Math.PI / 2;
+      w.add(sp);
+    }
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.07, 12), steelDark);
+    hub.rotation.z = Math.PI / 2;
+    w.add(hub);
+    // brake disc
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(isFront ? 0.09 : 0.072, isFront ? 0.09 : 0.072, 0.006, 20), alu);
+    disc.rotation.z = Math.PI / 2;
+    disc.position.x = isFront ? 0.042 : -0.042;
+    w.add(disc);
+    partMap.suspension.push(disc);
+    if (!isFront) {
+      // rear sprocket (anodized, body color pop)
+      const spr = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.078, 0.01, 20), mkBody());
+      spr.rotation.z = Math.PI / 2;
+      spr.position.x = 0.045;
+      w.add(spr);
+      partMap.gearbox.push(spr);
+    }
+    return w;
+  }
+
+  // ═══ FRONT END — forks / bars / wheel (raked steering assembly) ═══
+  const TP: [number, number, number] = [0, 0.46, 0.33]; // top triple clamp
+  const RAKE = -0.494;
+  const frontEnd = new THREE.Group();
+  frontEnd.position.set(...TP);
+  frontEnd.rotation.x = RAKE;
+  group.add(frontEnd);
+
+  // triple clamps
+  add(box(0.17, 0.03, 0.07, blackPlastic), 'suspension', frontEnd).position.set(0, 0, 0);
+  add(box(0.16, 0.028, 0.065, blackPlastic), 'suspension', frontEnd).position.set(0, -0.15, 0);
+  // upper fork tubes (gold anodized)
+  for (const sx of [1, -1]) {
+    const up = add(new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.34, 10), gold), 'suspension', frontEnd);
+    up.position.set(sx * 0.064, -0.1, 0);
+  }
+  // front slider — lower legs + wheel, moves with suspension travel
+  const frontSlider = new THREE.Group();
+  frontEnd.add(frontSlider);
+  for (const sx of [1, -1]) {
+    const guard = add(new THREE.Mesh(new THREE.CylinderGeometry(0.031, 0.028, 0.27, 10), mkBody()), 'suspension', frontSlider);
+    guard.position.set(sx * 0.064, -0.36, 0);
+    const lower = add(new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.2, 10), blackPlastic), 'suspension', frontSlider);
+    lower.position.set(sx * 0.064, -0.52, 0);
+  }
+  const fWheel = makeWheel(0.27, 0.045, true);
+  fWheel.position.set(0, -0.613, 0);
+  frontSlider.add(fWheel);
+  // brake caliper
+  const caliper = add(box(0.03, 0.07, 0.05, mkBody()), 'suspension', frontSlider);
+  caliper.position.set(0.055, -0.56, 0.045);
+
+  // handlebars — counter-rotated back to level
+  const bars = new THREE.Group();
+  bars.position.set(0, 0.05, 0);
+  bars.rotation.x = -RAKE;
+  frontEnd.add(bars);
+  add(box(0.03, 0.05, 0.035, blackPlastic), 'body', bars).position.set(0.035, 0.02, 0);
+  add(box(0.03, 0.05, 0.035, blackPlastic), 'body', bars).position.set(-0.035, 0.02, 0);
+  add(tube([-0.1, 0.055, 0], [0.1, 0.055, 0], 0.009, steelDark), 'body', bars);
+  for (const sx of [1, -1]) {
+    add(tube([sx * 0.1, 0.055, 0], [sx * 0.21, 0.07, -0.055], 0.009, steelDark), 'body', bars);
+    const grip = add(new THREE.Mesh(new THREE.CylinderGeometry(0.0135, 0.0135, 0.09, 8), rubber), 'body', bars);
+    grip.position.set(sx * 0.235, 0.073, -0.065);
+    grip.rotation.z = Math.PI / 2;
+    // levers
+    add(tube([sx * 0.185, 0.075, -0.05], [sx * 0.13, 0.075, 0.02], 0.004, alu), 'body', bars);
+  }
+  // crossbar + pad
+  add(tube([-0.09, 0.1, -0.02], [0.09, 0.1, -0.02], 0.0055, alu), 'body', bars);
+  const pad = add(box(0.1, 0.032, 0.036, mkBody()), 'body', bars);
+  pad.position.set(0, 0.1, -0.02);
+
+  // front number plate (on the steering head)
+  const fPlate = add(box(0.13, 0.15, 0.016, plateMat), 'body', bars);
+  fPlate.position.set(0, -0.035, 0.06);
+  fPlate.rotation.x = RAKE - 0.1;
+
+  // front fender — mounted to lower triple (does not travel)
+  const fFender = add(box(0.095, 0.02, 0.36, mkBody()), 'body', group);
+  fFender.position.set(0, 0.28, 0.56);
+  fFender.rotation.x = -0.1;
+  const fFenderTip = add(box(0.085, 0.018, 0.13, mkBody()), 'body', group);
+  fFenderTip.position.set(0, 0.245, 0.75);
+  fFenderTip.rotation.x = -0.42;
+
+  // ═══ FRAME ═══
+  add(tube([0, 0.4, 0.3], [0.05, 0.0, -0.06], 0.016, frameMat), 'body');
+  add(tube([0, 0.4, 0.3], [-0.05, 0.0, -0.06], 0.016, frameMat), 'body');
+  add(tube([0, 0.37, 0.32], [0, -0.06, 0.2], 0.015, frameMat), 'body');
+  add(tube([0.05, -0.1, 0.16], [0.05, -0.1, -0.04], 0.012, frameMat), 'body');
+  add(tube([-0.05, -0.1, 0.16], [-0.05, -0.1, -0.04], 0.012, frameMat), 'body');
+  add(tube([0, -0.06, 0.2], [0.05, -0.1, 0.16], 0.012, frameMat), 'body');
+  add(tube([0, -0.06, 0.2], [-0.05, -0.1, 0.16], 0.012, frameMat), 'body');
+  // subframe
+  add(tube([0.045, 0.24, -0.08], [0.04, 0.33, -0.5], 0.009, alu), 'body');
+  add(tube([-0.045, 0.24, -0.08], [-0.04, 0.33, -0.5], 0.009, alu), 'body');
+  add(tube([0.05, 0.02, -0.05], [0.04, 0.33, -0.48], 0.009, alu), 'body');
+  add(tube([-0.05, 0.02, -0.05], [-0.04, 0.33, -0.48], 0.009, alu), 'body');
+  // steering head
+  const head = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16, 10), frameMat), 'body');
+  head.position.set(0, 0.4, 0.31);
+  head.rotation.x = RAKE;
+
+  // ═══ TANK + SHROUDS ═══
+  const tankMesh = add(box(0.125, 0.09, 0.2, bodyMat), 'body');
+  tankMesh.position.set(0, 0.33, 0.13);
+  const tankTop = add(box(0.08, 0.04, 0.14, bodyMat), 'body');
+  tankTop.position.set(0, 0.385, 0.14);
+  // radiator shrouds — angled wings hugging the tank
+  for (const sx of [1, -1]) {
+    const s1 = add(box(0.02, 0.16, 0.26, bodyMat), 'body');
+    s1.position.set(sx * 0.082, 0.26, 0.17);
+    s1.rotation.set(0, -sx * 0.12, sx * 0.15);
+    const s2 = add(box(0.02, 0.1, 0.17, whitePlastic), 'body');
+    s2.position.set(sx * 0.08, 0.15, 0.2);
+    s2.rotation.set(0, -sx * 0.12, sx * 0.4);
+    // radiator behind shroud
+    const rad = add(box(0.035, 0.13, 0.09, steelDark), 'engine');
+    rad.position.set(sx * 0.055, 0.18, 0.24);
+    // airbox / side panel filling under the seat
+    const air = add(box(0.016, 0.12, 0.22, bodyMat), 'body');
+    air.position.set(sx * 0.058, 0.24, -0.1);
+    air.rotation.set(0, 0, sx * 0.06);
+  }
+
+  // ═══ SEAT + REAR BODY ═══
+  const seatMesh = add(box(0.1, 0.04, 0.56, seatMat), 'body');
+  seatMesh.position.set(0, 0.375, -0.13);
+  seatMesh.rotation.x = 0.05;
+  const rFender = add(box(0.095, 0.02, 0.28, bodyMat), 'body');
+  rFender.position.set(0, 0.41, -0.5);
+  rFender.rotation.x = 0.34;
+  const rTip = add(box(0.085, 0.018, 0.13, bodyMat), 'body');
+  rTip.position.set(0, 0.475, -0.66);
+  rTip.rotation.x = 0.58;
+  // side number plates
+  for (const sx of [1, -1]) {
+    const sp = add(box(0.018, 0.16, 0.23, plateMat), 'body');
+    sp.position.set(sx * 0.072, 0.27, -0.35);
+    sp.rotation.set(0, sx * 0.14, sx * 0.08);
+  }
+
+  // ═══ ENGINE ═══
+  const blockM = add(box(0.12, 0.17, 0.2, engineAlu), 'engine');
+  blockM.position.set(0, 0.02, 0.05);
+  const cyl = add(box(0.09, 0.13, 0.09, engineAlu), 'engine');
+  cyl.rotation.x = -0.5;
+  cyl.position.set(0, 0.15, 0.12);
+  const headC = add(box(0.078, 0.05, 0.075, steelDark), 'engine');
+  headC.rotation.x = -0.5;
+  headC.position.set(0, 0.22, 0.155);
+  const clutch = add(new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.024, 16), engineAlu), 'engine');
+  clutch.rotation.z = Math.PI / 2;
+  clutch.position.set(0.068, 0.0, 0.02);
+  const ign = add(new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.02, 16), engineAlu), 'engine');
+  ign.rotation.z = Math.PI / 2;
+  ign.position.set(-0.066, 0.0, 0.02);
+  const skid = add(box(0.11, 0.015, 0.26, alu), 'engine');
+  skid.position.set(0, -0.095, 0.04);
+  // footpegs
+  for (const sx of [1, -1]) {
+    const peg = add(new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.075, 6), steelDark), 'body');
+    peg.rotation.z = Math.PI / 2;
+    peg.position.set(sx * 0.1, -0.055, -0.06);
+  }
+  // shift lever / rear brake pedal
+  add(tube([-0.065, -0.045, 0.02], [-0.11, -0.055, 0.09], 0.006, steelDark), 'body');
+  add(tube([0.065, -0.045, 0.02], [0.1, -0.06, 0.12], 0.006, steelDark), 'body');
+
+  // ═══ EXHAUST (right side) ═══
+  add(tube([0, 0.19, 0.2], [0.07, 0.08, 0.29], 0.02, steelDark), 'engine');
+  add(tube([0.07, 0.08, 0.29], [0.095, -0.03, 0.12], 0.02, steelDark), 'engine');
+  add(tube([0.095, -0.03, 0.12], [0.095, 0.0, -0.18], 0.021, steelDark), 'engine');
+  add(tube([0.095, 0.0, -0.18], [0.082, 0.12, -0.32], 0.023, steelDark), 'engine');
+  const silencer = add(new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.034, 0.27, 12), alu), 'engine');
+  silencer.position.set(0.08, 0.16, -0.42);
+  silencer.rotation.x = Math.PI / 2 - 0.22;
+  const endCap = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.026, 0.03, 12), blackPlastic), 'engine');
+  endCap.position.set(0.08, 0.192, -0.555);
+  endCap.rotation.x = Math.PI / 2 - 0.22;
+
+  // ═══ REAR SWINGARM + WHEEL ═══
+  const rearSwing = new THREE.Group();
+  rearSwing.position.set(0, -0.02, -0.05);
+  group.add(rearSwing);
+  for (const sx of [1, -1]) {
+    const arm = add(box(0.026, 0.05, 0.54, alu), 'suspension', rearSwing);
+    arm.position.set(sx * 0.055, -0.035, -0.265);
+    arm.rotation.x = 0.13;
+  }
+  const rWheel = makeWheel(0.26, 0.06, false);
+  rWheel.position.set(0, -0.07, -0.53);
+  rearSwing.add(rWheel);
+  // chain run + guide (travels with swingarm)
+  const chain = add(box(0.014, 0.008, 0.5, blackPlastic), 'gearbox', rearSwing);
+  chain.position.set(0.052, -0.005, -0.26);
+  chain.rotation.x = 0.12;
+  const chainB = add(box(0.014, 0.008, 0.5, blackPlastic), 'gearbox', rearSwing);
+  chainB.position.set(0.052, -0.115, -0.26);
+  chainB.rotation.x = 0.14;
+  const guide = add(box(0.02, 0.05, 0.09, mkBody()), 'gearbox', rearSwing);
+  guide.position.set(0.052, -0.1, -0.45);
+  // front sprocket
+  const fSpr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.014, 12), steelDark), 'gearbox');
+  fSpr.rotation.z = Math.PI / 2;
+  fSpr.position.set(0.055, -0.03, -0.04);
+  // swingarm pivot bolt
+  const pivot = add(new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.13, 10), alu), 'suspension');
+  pivot.rotation.z = Math.PI / 2;
+  pivot.position.set(0, -0.02, -0.05);
+
+  // ═══ REAR SHOCK ═══
+  add(tube([0, 0.26, -0.1], [0, 0.0, -0.17], 0.016, gold), 'suspension');
+  for (let i = 0; i < 5; i++) {
+    const coil = add(new THREE.Mesh(new THREE.TorusGeometry(0.033, 0.006, 6, 14), new THREE.MeshStandardMaterial({ color: 0xd0342c, roughness: 0.4, metalness: 0.6 })), 'suspension');
+    const tt = i / 4;
+    coil.position.set(0, 0.21 - tt * 0.14, -0.115 - tt * 0.045);
+    coil.rotation.x = Math.PI / 2 - 0.26;
+  }
+
+  return { group, frontEnd, frontSlider, fWheel, rearSwing, rWheel, bars, bodyMats, partMap, tankMesh, seatMesh };
+}
+
+// ═══ Game instance ═══
+export const bike = createBikeModel(0xff5a0a, '7');
+export const bikeGroup = bike.group;
+bikeGroup.visible = false;
+bikeGroup.renderOrder = 1;
+// YXZ order: heading (Y) in world, tilt (X) and lean (Z) in bike's local frame
+bikeGroup.rotation.order = 'YXZ';
+
+export const fWheelGroup = bike.fWheel;
+export const rWheelGroup = bike.rWheel;
+// Legacy exports (shop / older modules referenced tank + seat directly)
+export const frame = bike.tankMesh;
+export const seat = bike.seatMesh;
+
+export function setBikeBodyColor(c: THREE.Color): void {
+  bike.bodyMats.forEach(m => m.color.copy(c));
+}
+
+// f/r: 0..1 suspension compression
+const FRONT_TRAVEL = 0.11;
+const REAR_TRAVEL = 0.17;
+export function updateSuspension(f: number, r: number): void {
+  bike.frontSlider.position.y = f * FRONT_TRAVEL;
+  bike.rearSwing.rotation.x = r * REAR_TRAVEL;
 }

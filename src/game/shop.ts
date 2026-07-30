@@ -1,5 +1,5 @@
 import { T, rgba, tC } from './themes';
-import { mxBike, frame, seat, bikeGroup } from './bike';
+import { mxBike, setBikeBodyColor } from './bike';
 import { achState, ACH_DEFS } from './achievements';
 import type { RGB } from './types';
 import * as THREE from 'three';
@@ -21,14 +21,14 @@ const UPGRADE_COSTS = [100, 300, 600]; // cost for level 1, 2, 3
 export const ACHIEVEMENT_REWARD = 75; // funds per achievement
 
 export const BIKE_COLORS: { name: string; color: RGB }[] = [
-  { name: 'Default', color: [255, 100, 0] },
-  { name: 'Electric Blue', color: [0, 140, 255] },
-  { name: 'Neon Green', color: [57, 255, 20] },
-  { name: 'Hot Pink', color: [255, 20, 147] },
-  { name: 'Gold', color: [255, 200, 0] },
-  { name: 'Ice White', color: [200, 220, 255] },
-  { name: 'Crimson', color: [220, 20, 60] },
-  { name: 'Purple', color: [160, 32, 240] },
+  { name: 'Moto Orange', color: [255, 90, 10] },
+  { name: 'Factory Blue', color: [20, 90, 220] },
+  { name: 'Team Green', color: [60, 175, 45] },
+  { name: 'Race Red', color: [220, 30, 35] },
+  { name: 'Retro Yellow', color: [245, 200, 20] },
+  { name: 'Works White', color: [235, 232, 225] },
+  { name: 'Magenta Works', color: [200, 30, 120] },
+  { name: 'Stealth Black', color: [35, 35, 40] },
 ];
 
 const COLOR_COSTS = [0, 150, 150, 200, 200, 250, 250, 300]; // cost per color
@@ -84,25 +84,17 @@ export function applyUpgrades(): void {
   mxBike.accel = 12 + upgrades.gearbox * 2.5;      // 12, 14.5, 17, 19.5
   mxBike.turnSpeed = 3.8 + upgrades.tires * 0.4;   // 3.8, 4.2, 4.6, 5.0
 
-  // Apply bike color to all body-colored parts
+  // Apply bike color to all body plastics (and the rider's jersey)
   const col = BIKE_COLORS[upgrades.bikeColor].color;
   const c = new THREE.Color(col[0] / 255, col[1] / 255, col[2] / 255);
-  // Color the frame (tank) and seat directly
-  (frame.material as THREE.MeshStandardMaterial).color.copy(c);
-  (frame.material as THREE.MeshStandardMaterial).emissive.copy(c);
-  (seat.material as THREE.MeshStandardMaterial).color.copy(c);
-  (seat.material as THREE.MeshStandardMaterial).emissive.copy(c);
-  // Also color all other body parts that share the same emissiveIntensity=0.7 signature
-  bikeGroup.children.forEach(child => {
-    if (child === frame || child === seat) return;
-    const mesh = child as THREE.Mesh;
-    if (!mesh.material) return;
-    const mat = mesh.material as THREE.MeshStandardMaterial;
-    if (mat.emissiveIntensity === 0.7 && mat.metalness === 0.7) {
-      mat.color.copy(c);
-      mat.emissive.copy(c);
-    }
-  });
+  setBikeBodyColor(c);
+  for (const fn of bikeColorListeners) fn(c);
+}
+
+// Other modules (rider, previews) can react to bike color changes
+const bikeColorListeners: ((c: THREE.Color) => void)[] = [];
+export function onBikeColorChange(fn: (c: THREE.Color) => void): void {
+  bikeColorListeners.push(fn);
 }
 
 // Get suspension bonus (reduces landing penalty, improves bump handling)

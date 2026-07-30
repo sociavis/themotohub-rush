@@ -29,6 +29,14 @@ export async function showWelcomeScreen(startGame: () => void): Promise<void> {
   const ws = document.getElementById('welcomeScreen')!;
 
   const hasSession = await checkSession();
+
+  // Embedded hosts (e.g. TheMotoHub) can skip the login screen entirely
+  const qp = new URLSearchParams(location.search);
+  if (qp.has('guest')) {
+    startGame();
+    return;
+  }
+
   if (hasSession) {
     renderLoggedIn(ws);
   } else {

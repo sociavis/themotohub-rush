@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { lerp, dst, T } from './game/themes';
-import { R, scene, camera, cam, camTargets, gridMat, gridBaseOpacity, ptL, ptL2, grid, warpGrid } from './game/renderer';
+import { R, scene, camera, cam } from './game/renderer';
 import { I, mob, setupInputListeners, updateMouse3D, getCursorRing, arrowLeft, arrowRight, arrowUp } from './game/input';
 import { isSoundOn, sndClick, sndShockwave, sndSectionChange, sndAchievement, sndCheckpoint, sndLanding, sndJump, sndWheelie, sndWheelieEnd, sndSkid, startEngine, updateEngine, stopEngine } from './game/audio';
 import { parts, Pt, MAXP, syncParticles, shocks, mkShock } from './game/particles';
-import { mxBike, bikeGroup, resetBike, frame, fWheelGroup, rWheelGroup } from './game/bike';
+import { mxBike, bikeGroup, resetBike, fWheelGroup, rWheelGroup, updateSuspension } from './game/bike';
+import { createRider } from './game/rider';
 import {
   mxTrackIdx, mxSpline, mxSplineLen, mxCPMeshes, s4,
   buildTrack, setVis, getTrackHeight, getBerm, nextTrack, setTrackIdx,
@@ -22,7 +23,7 @@ import { initSoundToggle } from './game/sound-toggle';
 import type { MXTimer } from './game/types';
 import { isLoggedIn, updateBestTime, getServerAchievements, getServerUpgrades, saveProgressToServer, getToken } from './game/auth';
 import { submitLapTime, fetchLeaderboard, fetchWorldRecord, getWRForTrack } from './game/leaderboard';
-import { initShop, applyUpgrades, checkAchievementFunds, getSuspensionBonus, getTireGrip, mergeServerUpgrades, getUpgradeSaveData } from './game/shop';
+import { initShop, applyUpgrades, checkAchievementFunds, getSuspensionBonus, getTireGrip, mergeServerUpgrades, getUpgradeSaveData, onBikeColorChange } from './game/shop';
 import { initLeaderboardUI } from './ui/leaderboard-ui';
 import { initProfileUI } from './ui/profile-ui';
 import { showMainMenu, hideMainMenu } from './ui/main-menu';
@@ -30,11 +31,41 @@ import { showTrackSelect, hideTrackSelect } from './ui/track-select';
 import { showPostRace, hidePostRace } from './ui/post-race';
 import { showFullShop, showFullProfile, showFullAchievements, hideFullScreen } from './ui/full-screens';
 
+// ── Embed mode (TheMotoHub / iframe hosting) ──
+const QP = new URLSearchParams(location.search);
+export const IS_EMBED = QP.has('embed');
+function postToHost(msg: Record<string, unknown>): void {
+  try {
+    if (window.parent !== window) {
+      window.parent.postMessage({ source: 'socia-mx', ...msg }, '*');
+    }
+  } catch { /* cross-origin host — ignore */ }
+}
+if (IS_EMBED) document.body.classList.add('embed');
+
 // ── Game State ──
 type GameScreen = 'menu' | 'track-select' | 'racing' | 'post-race' | 'shop' | 'profile' | 'achievements';
 let currentScreen: GameScreen = 'menu';
 let mxGameActive = false;
 let mxAccel = false;
+
+// ── Rider (procedural figure riding the bike) ──
+const rider = createRider();
+bikeGroup.add(rider.group);
+onBikeColorChange(c => rider.setJerseyColor(c));
+
+// ── Suspension spring state ──
+let fComp = 0, fVel = 0, rComp = 0, rVel = 0;
+let camShake = 0;
+
+function springStep(c: number, v: number, target: number, dt: number): [number, number] {
+  const a = (target - c) * 80 - v * 11;
+  v += a * dt;
+  c += v * dt;
+  if (c < 0) { c = 0; v = Math.max(v, 0); }
+  if (c > 1) { c = 1; v = Math.min(v, 0); }
+  return [c, v];
+}
 
 const mxTimer: MXTimer = {
   running: false, start: 0, lapStart: 0, lapTime: 0,
@@ -51,8 +82,10 @@ function resetMX(): void {
   dustTrail.length = 0; tireTrail.length = 0;
   mxRoostParts.length = 0; mxAmbientParts.length = 0;
   const sp = mxSpline!.getPointAt(0);
-  mxBike.pos.set(sp.x, 0, sp.z);
+  mxBike.pos.set(sp.x, getTrackHeight(0) + 0.35, sp.z);
   bikeGroup.position.copy(mxBike.pos);
+  const tan0 = mxSpline!.getTangentAt(0);
+  bikeGroup.rotation.set(0, Math.atan2(tan0.x, tan0.z), 0);
 }
 
 // ── HUD Visibility ──
@@ -148,7 +181,7 @@ function sectionEnter(): void {
   buildTrack();
   resetMX();
   setVis();
-  grid.visible = true;
+  fComp = 0; fVel = 0; rComp = 0; rVel = 0; camShake = 0;
   if (isSoundOn()) startEngine();
   // Fetch leaderboard for current track
   const trackName = MX_TRACKS[mxTrackIdx].name;
@@ -178,6 +211,7 @@ function startRaceCountdown(): void {
     } else {
       cdEl.textContent = 'GO!';
       sndShockwave();
+      if (I.down || arrowUp) mxAccel = true; // holding through the gate drop
       // Start race
       mxTimer.running = true;
       mxTimer.start = performance.now() / 1000;
@@ -388,6 +422,13 @@ function updateMX(t: number): void {
             parts.push(new Pt(mxBike.pos.x, 1.5 + Math.random(), mxBike.pos.z, Math.cos(a) * sp, Math.random() * 1.0 + 0.2, Math.sin(a) * sp, c, 3 + Math.random() * 4, 0.15 + Math.random() * 0.35));
           }
           sndAchievement();
+          postToHost({
+            type: 'race-complete',
+            track: MX_TRACKS[mxTrackIdx].name,
+            lapTime: Math.round(lapTime * 100) / 100,
+            bestLap: Math.round((mxTimer.bestLapTimes[MX_TRACKS[mxTrackIdx].name] || lapTime) * 100) / 100,
+            newBest: isNewBest,
+          });
           // Show post-race screen after celebration particles
           const finishedTrackIdx = mxTrackIdx;
           const finishedLapTime = lapTime;
@@ -444,6 +485,9 @@ function updateMX(t: number): void {
         mxBike.speed = Math.min(mxBike.speed * (1.03 + (suspBonus - 1) * 0.05), mxBike.maxSpeed * 1.08);
       }
       mxBike.jumpVel = 0; sndLanding(); mxTimer.airTime = 0;
+      // Suspension slams + camera kick on landing
+      fVel += impactVel * 1.6; rVel += impactVel * 2.0;
+      camShake = Math.min(0.08 + impactVel * 0.025, 0.32);
       // End wheelie on landing
       if (mxBike.wheelie) { mxBike.wheelie = false; mxBike.wheelieBalance = 0; }
       const landingParts = impactVel > 3 ? 12 : 8;
@@ -460,8 +504,9 @@ function updateMX(t: number): void {
   curTan = mxSpline.getTangentAt(mxBike.t).normalize();
   curNorm.set(-curTan.z, 0, curTan.x);
 
+  const speedRatio = mxBike.speed / mxBike.maxSpeed;
   const suspFreq = 8 + mxBike.speed * 0.4;
-  mxBike.suspBob = Math.sin(t * suspFreq) * 0.025 * (mxBike.speed / mxBike.maxSpeed) + Math.sin(t * suspFreq * 2.3) * 0.008;
+  mxBike.suspBob = Math.sin(t * suspFreq) * 0.02 * speedRatio + Math.sin(t * suspFreq * 2.3) * 0.006;
   // Position bike — keep above track surface (0.35 base clearance prevents sinking on hills)
   const groundY = mxBike.airborne ? mxBike.hOff : Math.max(mxBike.hOff, trackH);
   mxBike.pos.set(
@@ -476,6 +521,28 @@ function updateMX(t: number): void {
   // Tilt: negative = front up. Wheelie: strong front-up; Airborne: slight nose-up; Accel: slight nose-up (torque feel)
   const tiltTarget = mxBike.wheelie ? -0.65 : mxBike.airborne ? -0.2 : (mxAccel ? -0.06 : 0.02);
   bikeGroup.rotation.x = lerp(bikeGroup.rotation.x || 0, tiltTarget, mxBike.wheelie ? 0.25 : 0.1);
+
+  // ── Suspension travel (spring-damper on both ends) ──
+  const bump = Math.abs(Math.sin(t * suspFreq)) * 0.12 * speedRatio;
+  const grounded = !mxBike.airborne;
+  const fTarget = !grounded ? 0
+    : mxBike.wheelie ? 0.05
+    : Math.min(1, 0.22 + (mxAccel ? 0 : 0.18 * speedRatio) + bump);
+  const rTarget = !grounded ? 0
+    : Math.min(1, 0.22 + (mxAccel ? 0.4 * speedRatio : 0) + (mxBike.wheelie ? 0.35 : 0) + bump);
+  [fComp, fVel] = springStep(fComp, fVel, fTarget, dt);
+  [rComp, rVel] = springStep(rComp, rVel, rTarget, dt);
+  updateSuspension(fComp, rComp);
+  // chassis settles into the stroke
+  bikeGroup.position.y -= (fComp * 0.11 + rComp * 0.17) * 0.3;
+
+  // ── Rider pose ──
+  rider.update({
+    crouch: mxBike.airborne ? 1 : Math.min(0.85, speedRatio * 1.1),
+    back: mxBike.wheelie ? 1 : 0,
+    legOut: grounded && mxBike.speed > 4 && Math.abs(mxBike.lean) > 0.14 ? (mxBike.lean > 0 ? 1 : -1) : 0,
+    tuck: mxBike.airborne ? 0.6 : 0,
+  }, dt);
 
   // Wheel spin
   fWheelGroup.rotation.x += mxBike.speed * dt * 4;
@@ -516,9 +583,6 @@ function updateMX(t: number): void {
   updateRoostParticles(dt, mxBike.speed, bikeGrounded, mxBike.pos, curTan, trackH);
   updateAmbientParticles(dt, t, mxBike.pos);
 
-  (frame.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.5 + (mxAccel ? 0.2 : 0);
-  warpGrid(t, mxBike.pos.x, mxBike.pos.z, 0.6 + mxBike.speed * 0.05);
-
   if (isSoundOn()) updateEngine(mxBike.speed, mxBike.maxSpeed, mxAccel);
 }
 
@@ -551,6 +615,12 @@ function startGame(): void {
     window.addEventListener('pagehide', saveOnExit);
   }
 
+  // Build the first venue as a live backdrop for the menu orbit camera
+  setTrackIdx(0);
+  buildTrack();
+  resetMX();
+  setVis();
+
   // Show main menu instead of directly entering race
   setHUDVisible(false);
   goToMainMenu();
@@ -572,31 +642,42 @@ function startGame(): void {
     if (I.down) I.holdTime += 0.016;
 
     updateMouse3D(camera);
-    gridMat.opacity = gridBaseOpacity;
 
-    // Camera
-    const ct = camTargets[0];
-    const mx = I.rx - 0.5;
-    let cTargetX = ct.px + mx * 4, cTargetY = ct.py, cTargetZ = ct.pz + (I.ry - 0.5) * 3;
-    let cLookX = ct.lx, cLookY = ct.ly, cLookZ = ct.lz;
+    // ── Camera ──
+    let cTargetX: number, cTargetY: number, cTargetZ: number;
+    let cLookX: number, cLookY: number, cLookZ: number;
+    let fovTarget = 62;
     if (mxGameActive && mxSpline) {
+      // Chase cam — behind and above the bike, looking down the track
       const mxTan = mxSpline.getTangentAt(mxBike.t).normalize();
-      cTargetX = mxBike.pos.x * 0.75; cTargetY = 18 + mxBike.hOff * 0.5; cTargetZ = mxBike.pos.z * 0.75 + 12;
-      cLookX = mxBike.pos.x * 0.75 + mxTan.x * 3; cLookZ = mxBike.pos.z * 0.75 + mxTan.z * 3;
+      const camBack = 4.9, camUp = 2.15;
+      cTargetX = mxBike.pos.x - mxTan.x * camBack - mxBike.lean * mxTan.z * 0.9;
+      cTargetY = mxBike.pos.y + camUp;
+      cTargetZ = mxBike.pos.z - mxTan.z * camBack + mxBike.lean * mxTan.x * 0.9;
+      cLookX = mxBike.pos.x + mxTan.x * 4.5;
+      cLookY = mxBike.pos.y + 0.8;
+      cLookZ = mxBike.pos.z + mxTan.z * 4.5;
+      fovTarget = 62 + (mxBike.speed / mxBike.maxSpeed) * 13 + (mxBike.airborne ? 3 : 0);
+    } else {
+      // Menu — slow aerial orbit over the venue
+      const oa = t * 0.05;
+      cTargetX = Math.sin(oa) * 26; cTargetY = 11; cTargetZ = Math.cos(oa) * 26;
+      cLookX = 0; cLookY = 0.5; cLookZ = 0;
     }
-    cam.px = lerp(cam.px, cTargetX, 0.09);
-    cam.py = lerp(cam.py, cTargetY, 0.09);
-    cam.pz = lerp(cam.pz, cTargetZ, 0.09);
-    cam.lx = lerp(cam.lx, cLookX, 0.10);
-    cam.ly = lerp(cam.ly, cLookY, 0.10);
-    cam.lz = lerp(cam.lz, cLookZ, 0.10);
-    camera.position.set(cam.px, cam.py, cam.pz);
+    cam.px = lerp(cam.px, cTargetX, 0.10);
+    cam.py = lerp(cam.py, cTargetY, 0.10);
+    cam.pz = lerp(cam.pz, cTargetZ, 0.10);
+    cam.lx = lerp(cam.lx, cLookX, 0.14);
+    cam.ly = lerp(cam.ly, cLookY, 0.14);
+    cam.lz = lerp(cam.lz, cLookZ, 0.14);
+    camShake = Math.max(0, camShake - camShake * 7 * 0.016);
+    const shX = (Math.random() - 0.5) * camShake, shY = (Math.random() - 0.5) * camShake;
+    camera.position.set(cam.px + shX, cam.py + shY, cam.pz + shX);
     camera.lookAt(cam.lx, cam.ly, cam.lz);
-
-    ptL.position.x = lerp(ptL.position.x, I.mx * 0.4, 0.04);
-    ptL.position.z = lerp(ptL.position.z, I.mz * 0.4, 0.04);
-    ptL.intensity = 3 + (I.down ? I.holdTime : 0);
-    ptL2.intensity = 1.5;
+    if (Math.abs(camera.fov - fovTarget) > 0.05) {
+      camera.fov = lerp(camera.fov, fovTarget, 0.07);
+      camera.updateProjectionMatrix();
+    }
 
     updateMX(t);
     updateHUD(mxBike, mxTimer, mxTrackIdx, mxAccel);
@@ -630,6 +711,7 @@ function init(): void {
 
   setupInputListeners(applyTheme, () => {}, sectionClick, sectionRelease);
   applyTheme(0);
+  postToHost({ type: 'ready' });
 
   // Loading screen → welcome screen → game start
   startLoading(startGame);
