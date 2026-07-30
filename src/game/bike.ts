@@ -437,6 +437,7 @@ export function setBikeBodyColor(c: THREE.Color): void {
   bike.bodyMats.forEach(m => m.color.copy(c));
   pendingColor = c.clone();
   if (glbRig) glbRig.tintMats.forEach(m => m.color.copy(c));
+  riderRig?.setJerseyColor(c);
   setPlateTint(c);
 }
 
@@ -450,24 +451,43 @@ export function updateSuspension(f: number, r: number): void {
 
 // ═══ Hero GLB bike (CRF450) — swaps in over the procedural model ═══
 import { loadGlbBike, setPlateTint, type GlbBikeRig } from './bike-glb';
+import { loadGlbRider, type RiderRig, type RiderPose } from './rider-glb';
 
 let glbRig: GlbBikeRig | null = null;
+let riderRig: RiderRig | null = null;
 let pendingColor: THREE.Color | null = null;
+
+// Rider hips mount in bike space (the rig's RIDER-ATTATCH bone sits inside
+// the engine, so we place the hips at real seat height ourselves)
+export const RIDER_MOUNT = { x: 0, y: 0.46, z: -0.12, ry: 0 };
 
 export function isGlbBikeActive(): boolean { return glbRig !== null; }
 
 export function initHeroBike(): void {
-  loadGlbBike().then(rig => {
-    if (!rig) return;
-    glbRig = rig;
-    // hide the procedural bodywork, keep the group as the physics anchor
-    // (the rider group is tagged by name and stays visible)
-    for (const child of [...bikeGroup.children]) {
-      if (child !== rig.root && child.name !== 'rider') child.visible = false;
+  const noRider = new URLSearchParams(location.search).has('norider');
+  Promise.all([loadGlbBike(), noRider ? Promise.resolve(null) : loadGlbRider()]).then(([rig, rider]) => {
+    if (rig) {
+      glbRig = rig;
+      // hide the procedural bodywork, keep the group as the physics anchor
+      for (const child of [...bikeGroup.children]) {
+        if (child !== rig.root && child.name !== 'rider') child.visible = false;
+      }
+      bikeGroup.add(rig.root);
+      if (pendingColor) rig.tintMats.forEach(m => m.color.copy(pendingColor!));
     }
-    bikeGroup.add(rig.root);
-    if (pendingColor) rig.tintMats.forEach(m => m.color.copy(pendingColor!));
+    if (rider) {
+      riderRig = rider;
+      bikeGroup.add(rider.root);
+      rider.root.position.set(RIDER_MOUNT.x, RIDER_MOUNT.y, RIDER_MOUNT.z);
+      if (rig) rider.attach(rig.mounts);
+      if (pendingColor) rider.setJerseyColor(pendingColor);
+    }
   });
+}
+
+// Drive the rider's pose from gameplay (no-op until the rider loads)
+export function updateRiderPose(pose: RiderPose, dt: number): void {
+  riderRig?.update(pose, dt);
 }
 
 // Wheel spin for whichever model is active

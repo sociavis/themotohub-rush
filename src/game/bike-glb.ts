@@ -16,6 +16,8 @@ export interface GlbBikeRig {
   steer: THREE.Bone | null;   // FRONT-STEER
   tintMats: THREE.MeshStandardMaterial[];  // fenders/shrouds — colorway tint targets
   spin: (delta: number) => void;
+  // rider attach points baked into the CRF rig
+  mounts: { handL: THREE.Bone | null; handR: THREE.Bone | null; footL: THREE.Bone | null; footR: THREE.Bone | null; seat: THREE.Bone | null };
 }
 
 const WHEELBASE = 1.2;
@@ -29,10 +31,15 @@ const DARK_MATS = ['SEAT'];
 let cached: GlbBikeRig | null = null;
 let loading: Promise<GlbBikeRig | null> | null = null;
 
+// GLTFLoader sanitizes node names (dots/spaces stripped), so match on a
+// normalized form: alphanumerics only, uppercase.
+const normName = (n: string) => n.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+
 function findBone(root: THREE.Object3D, prefix: string): THREE.Bone | null {
+  const want = normName(prefix);
   let found: THREE.Bone | null = null;
   root.traverse(o => {
-    if (!found && (o as THREE.Bone).isBone && o.name.startsWith(prefix)) found = o as THREE.Bone;
+    if (!found && (o as THREE.Bone).isBone && normName(o.name).startsWith(want)) found = o as THREE.Bone;
   });
   return found;
 }
@@ -292,7 +299,14 @@ function buildRig(scene: THREE.Group): GlbBikeRig {
   paintPlates(currentNum);
 
   const spin = makeSpin(root, fWheel, rWheel);
-  return { root, fWheel, rWheel, steer, tintMats, spin };
+  const mounts = {
+    handL: findBone(scene, 'HAND-SNAP.L'),
+    handR: findBone(scene, 'HAND-SNAP.R'),
+    footL: findBone(scene, 'FOOT-ATCH.L'),
+    footR: findBone(scene, 'FOOT-ATCH.R'),
+    seat: findBone(scene, 'RIDER-ATTATCH'),
+  };
+  return { root, fWheel, rWheel, steer, tintMats, spin, mounts };
 }
 
 // The FBX rig's wheel bones have arbitrary rest orientations (the front one
@@ -373,5 +387,14 @@ export function cloneGlbBike(): GlbBikeRig | null {
   const fWheel = findBone(sceneClone, 'FRONT-WHEEL-DEF');
   const rWheel = findBone(sceneClone, 'REAR-WHEEL-ROT');
   const steer = findBone(sceneClone, 'FRONT-STEER');
-  return { root, fWheel, rWheel, steer, tintMats, spin: makeSpin(root, fWheel, rWheel) };
+  return {
+    root, fWheel, rWheel, steer, tintMats, spin: makeSpin(root, fWheel, rWheel),
+    mounts: {
+      handL: findBone(sceneClone, 'HAND-SNAP.L'),
+      handR: findBone(sceneClone, 'HAND-SNAP.R'),
+      footL: findBone(sceneClone, 'FOOT-ATCH.L'),
+      footR: findBone(sceneClone, 'FOOT-ATCH.R'),
+      seat: findBone(sceneClone, 'RIDER-ATTATCH'),
+    },
+  };
 }

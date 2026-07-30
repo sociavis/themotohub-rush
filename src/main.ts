@@ -4,7 +4,7 @@ import { R, scene, camera, cam } from './game/renderer';
 import { I, mob, setupInputListeners, updateMouse3D, getCursorRing, arrowLeft, arrowRight, arrowUp, arrowDown } from './game/input';
 import { isSoundOn, sndClick, sndShockwave, sndSectionChange, sndAchievement, sndCheckpoint, sndLanding, sndJump, sndWheelie, sndWheelieEnd, sndSkid, startEngine, updateEngine, stopEngine } from './game/audio';
 import { parts, Pt, MAXP, syncParticles, shocks, mkShock } from './game/particles';
-import { mxBike, bikeGroup, resetBike, updateSuspension, spinWheels, initHeroBike } from './game/bike';
+import { mxBike, bikeGroup, resetBike, updateSuspension, spinWheels, initHeroBike, updateRiderPose } from './game/bike';
 import { setRiderNumber } from './game/bike-glb';
 import {
   mxTrackIdx, mxSpline, mxSplineLen, mxCPMeshes, s4,
@@ -603,6 +603,15 @@ function updateMX(t: number): void {
   updateSuspension(fComp, rComp);
   // chassis settles into the stroke
   bikeGroup.position.y -= (fComp * 0.11 + rComp * 0.17) * 0.3;
+
+  // Rider pose follows the riding state
+  updateRiderPose({
+    crouch: mxBike.airborne ? 1 : Math.min(0.85, (mxBike.speed / mxBike.maxSpeed) * 1.1),
+    back: mxBike.wheelie ? 1 : 0,
+    legOut: grounded && mxBike.speed > 4 && Math.abs(mxBike.lean) > 0.14 ? (mxBike.lean > 0 ? 1 : -1) : 0,
+    tuck: mxBike.airborne ? 0.6 : 0,
+    lean: mxBike.lean,
+  }, dt);
 
   // Wheel spin
   spinWheels(mxBike.speed * dt * 4);

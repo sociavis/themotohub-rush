@@ -7,7 +7,11 @@ Visual for TheMotoHub's arcade.
 Bike model: based on "(FREE) Honda CRF 450" by
 [Jacobdesigns](https://sketchfab.com/Jacobdesigns) on Sketchfab, licensed
 [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/) (de-badged and
-re-rigged for the game).
+re-rigged for the game). Rider model: based on
+"Low-poly Motocross Character (rigged)" by
+[XHeheX](https://sketchfab.com/XHeheX) on Sketchfab, licensed
+[CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/) (posed via
+runtime IK against the bike's grip/peg attach points).
 
 **Play:** https://socia-visual-mx.vercel.app
 

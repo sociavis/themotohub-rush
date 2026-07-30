@@ -34,17 +34,42 @@
 <script type="module">
 import * as THREE from 'three';
 import { loadGlbBike, setRiderNumber, tunePlate, getPlateSpots } from '/src/game/bike-glb.ts';
+import { loadGlbRider } from '/src/game/rider-glb.ts';
 
 const rig = await loadGlbBike();
 if (!rig) { document.body.innerHTML = '<h1 style="color:red">GLB failed</h1>'; throw 0; }
 setRiderNumber(parseInt(new URLSearchParams(location.search).get('num') || '739'));
 
+// Rider mounted at the seat (same offsets as the game)
+const rider = await loadGlbRider();
+if (rider) {
+  rider.root.position.set(0, 0.46, -0.12);
+  rig.root.add(rider.root);
+  rig.root.updateMatrixWorld(true);
+  const lg = (n, o) => console.log('[mounts]', n, o ? o.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)).join(',') : 'NULL');
+  lg('seat', rig.mounts.seat); lg('handL', rig.mounts.handL); lg('handR', rig.mounts.handR); lg('footL', rig.mounts.footL); lg('footR', rig.mounts.footR);
+  rider.attach(rig.mounts);
+  if (new URLSearchParams(location.search).has('nobike')) {
+    rig.root.traverse(o => { if (o !== rider.root && !rider.root.getObjectById(o.id) && o.isMesh) o.visible = false; });
+  }
+  window.__rider = rider;  // console access for pose experiments
+  const qp = new URLSearchParams(location.search);
+  const pose = {
+    crouch: parseFloat(qp.get('crouch') || '0'),
+    back: parseFloat(qp.get('back') || '0'),
+    legOut: parseFloat(qp.get('legout') || '0'),
+    tuck: parseFloat(qp.get('tuck') || '0'),
+    lean: parseFloat(qp.get('lean') || '0'),
+  };
+  rider.update(pose, 1);
+}
+
 // ── viewports (continuous render so texture edits show live) ──
 const views = [
-  { id: 'c1', pos: [-1.9, 0.3, -0.35], look: [0, 0.12, -0.35] },
-  { id: 'c2', pos: [1.9, 0.3, -0.35], look: [0, 0.12, -0.35] },
-  { id: 'c3', pos: [0, 0.3, 2.0], look: [0, 0.15, 0] },
-  { id: 'c4', pos: [1.4, 0.55, -1.5], look: [0, 0.12, -0.2] },
+  { id: 'c1', pos: [-2.5, 0.6, -0.1], look: [0, 0.35, -0.1] },
+  { id: 'c2', pos: [2.5, 0.6, -0.1], look: [0, 0.35, -0.1] },
+  { id: 'c3', pos: [0, 0.6, 2.7], look: [0, 0.4, 0] },
+  { id: 'c4', pos: [1.8, 0.9, -2.1], look: [0, 0.35, -0.1] },
 ];
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x2a2622);
