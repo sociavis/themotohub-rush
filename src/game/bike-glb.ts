@@ -47,15 +47,95 @@ function stripGraphics(mat: THREE.MeshStandardMaterial): void {
 // ── Number plates: repaint the NUMBERPLATES texture with the rider number ──
 // UV regions measured from the source texture (three white plate zones; the
 // front plate is mapped upside-down and carried a logo band — blacked out).
-interface PlateSpot { x: number; y: number; rot: number; size: number; maxW: number; cal: string }
-// Centers measured from the source texture (PIL region analysis)
+// frame: texture-space basis derived from the mesh geometry so text renders
+// level and unmirrored on the 3D plate regardless of UV rotation/shear.
+// (ax,ay) = texture direction of on-plate "reading left→right",
+// (bx,by) = texture direction of on-plate "down".
+interface PlateFrame { ax: number; ay: number; bx: number; by: number }
+interface PlateSpot {
+  x: number; y: number; rot: number; size: number; maxW: number; cal: string;
+  region: [number, number, number, number];   // minU, maxU, minV, maxV
+  readDir: [number, number, number];          // world reading direction on the plate
+  frame?: PlateFrame;                         // computed at load
+}
 const PLATE_SPOTS: PlateSpot[] = [
-  { x: 0.250, y: 0.433, rot: 0.8, size: 0.17, maxW: 0.15, cal: 'F1' },  // side plate A
-  { x: 0.599, y: 0.237, rot: 0.7, size: 0.17, maxW: 0.15, cal: 'F2' },  // side plate B
-  { x: 0.524, y: 0.829, rot: 0, size: 0.19, maxW: 0.24, cal: 'F3' },  // front plate
+  { x: 0.250, y: 0.433, rot: 0, size: 0.17, maxW: 0.15, cal: 'F1',
+    region: [0.10, 0.38, 0.22, 0.66], readDir: [0, 0, 1] },   // left side plate (viewed from -x)
+  { x: 0.599, y: 0.237, rot: 0, size: 0.17, maxW: 0.15, cal: 'F2',
+    region: [0.44, 0.70, 0.02, 0.42], readDir: [0, 0, -1] },  // right side plate (viewed from +x)
+  { x: 0.524, y: 0.829, rot: 0, size: 0.19, maxW: 0.24, cal: 'F3',
+    region: [0.34, 0.68, 0.62, 1.0], readDir: [-1, 0, 0] },   // front plate (viewed from +z)
 ];
-// Calibration mode: paint identifying digits at rot 0 to observe orientation
+// Calibration mode: paint identifying digits to observe orientation
 const PLATE_CAL = false;
+
+// Derive each plate's texture-space frame from the actual mesh: find a
+// triangle whose UVs sit inside the plate region, build the Jacobian
+// world = J · uv, then express the desired world "reading" and "down"
+// directions back in texture space (least squares through JᵀJ).
+function computePlateFrames(scene: THREE.Object3D): void {
+  let mesh: THREE.Mesh | null = null;
+  scene.traverse(o => {
+    const m = o as THREE.Mesh;
+    if (mesh || !m.isMesh) return;
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    if (mats.some(mm => (mm as THREE.Material).name?.toUpperCase().includes('NUMBERPLATES'))) mesh = m;
+  });
+  if (!mesh) return;
+  const g = (mesh as THREE.Mesh).geometry;
+  const pos = g.getAttribute('position');
+  const uv = g.getAttribute('uv');
+  const idx = g.getIndex();
+  if (!pos || !uv) return;
+  (mesh as THREE.Mesh).updateWorldMatrix(true, false);
+  const mw = (mesh as THREE.Mesh).matrixWorld;
+  const triCount = idx ? idx.count / 3 : pos.count / 3;
+  const vi = (t: number, k: number) => idx ? idx.getX(t * 3 + k) : t * 3 + k;
+  const wp = (i: number) => new THREE.Vector3().fromBufferAttribute(pos as THREE.BufferAttribute, i).applyMatrix4(mw);
+
+  for (const spot of PLATE_SPOTS) {
+    const [u0, u1, v0, v1] = spot.region;
+    let best: { area: number; frame: PlateFrame } | null = null;
+    for (let t = 0; t < triCount; t++) {
+      const ia = vi(t, 0), ib = vi(t, 1), ic = vi(t, 2);
+      const uva = [uv.getX(ia), uv.getY(ia)] as const;
+      const uvb = [uv.getX(ib), uv.getY(ib)] as const;
+      const uvc = [uv.getX(ic), uv.getY(ic)] as const;
+      const inR = (q: readonly [number, number]) => q[0] >= u0 && q[0] <= u1 && q[1] >= v0 && q[1] <= v1;
+      if (!inR(uva) || !inR(uvb) || !inR(uvc)) continue;
+      // uv deltas (2x2) and world deltas (3x2)
+      const du1 = uvb[0] - uva[0], dv1 = uvb[1] - uva[1];
+      const du2 = uvc[0] - uva[0], dv2 = uvc[1] - uva[1];
+      const det = du1 * dv2 - du2 * dv1;
+      if (Math.abs(det) < 1e-8) continue;
+      const A = wp(ia), B = wp(ib), C = wp(ic);
+      const e1 = new THREE.Vector3().subVectors(B, A);
+      const e2 = new THREE.Vector3().subVectors(C, A);
+      // J columns: dWorld/du, dWorld/dv
+      const Ju = new THREE.Vector3().addScaledVector(e1, dv2 / det).addScaledVector(e2, -dv1 / det);
+      const Jv = new THREE.Vector3().addScaledVector(e1, -du2 / det).addScaledVector(e2, du1 / det);
+      // least squares: uvDir = (JtJ)^-1 Jt · worldDir
+      const a11 = Ju.dot(Ju), a12 = Ju.dot(Jv), a22 = Jv.dot(Jv);
+      const dJ = a11 * a22 - a12 * a12;
+      if (Math.abs(dJ) < 1e-12) continue;
+      const solve = (w: THREE.Vector3): [number, number] => {
+        const b1 = Ju.dot(w), b2 = Jv.dot(w);
+        return [(a22 * b1 - a12 * b2) / dJ, (a11 * b2 - a12 * b1) / dJ];
+      };
+      const read = solve(new THREE.Vector3(...spot.readDir));
+      const down = solve(new THREE.Vector3(0, -1, 0));
+      const nrm = (q: [number, number]): [number, number] => {
+        const l = Math.hypot(q[0], q[1]) || 1;
+        return [q[0] / l, q[1] / l];
+      };
+      const [ax, ay] = nrm(read);
+      const [bx, by] = nrm(down);
+      const area = Math.abs(det);
+      if (!best || area > best.area) best = { area, frame: { ax, ay, bx, by } };
+    }
+    if (best) spot.frame = best.frame;
+  }
+}
 
 const plateMats: THREE.MeshStandardMaterial[] = [];
 let plateSourceImg: CanvasImageSource | null = null;
@@ -93,7 +173,10 @@ function paintPlates(num: number): void {
     const txt = PLATE_CAL ? p.cal : numTxt;
     ctx.save();
     ctx.translate(p.x * S, p.y * S);
-    ctx.scale(1, -1);          // plate UVs are vertically flipped on this model
+    if (p.frame) {
+      // geometry-derived basis: canvas x → on-plate reading dir, canvas y → on-plate down
+      ctx.transform(-p.frame.ax, -p.frame.ay, -p.frame.bx, -p.frame.by, 0, 0);
+    }
     ctx.rotate(p.rot);
     ctx.fillStyle = '#111';
     // fit: shrink font until the number fits the plate width
@@ -129,6 +212,16 @@ export function setPlateTint(c: THREE.Color): void {
 }
 
 export function getRiderNumber(): number { return currentNum; }
+
+// Dev-only: live plate calibration from debug-bike.html
+export function tunePlate(i: number, patch: Partial<PlateSpot>): void {
+  Object.assign(PLATE_SPOTS[i], patch);
+  paintPlates(currentNum);
+}
+
+export function getPlateSpots(): PlateSpot[] {
+  return PLATE_SPOTS.map(p => ({ ...p }));
+}
 
 function buildRig(scene: THREE.Group): GlbBikeRig {
   const root = new THREE.Group();
@@ -195,6 +288,7 @@ function buildRig(scene: THREE.Group): GlbBikeRig {
       }
     }
   });
+  computePlateFrames(scene);
   paintPlates(currentNum);
 
   const spin = makeSpin(root, fWheel, rWheel);
