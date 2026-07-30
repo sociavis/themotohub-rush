@@ -21,10 +21,10 @@ const UPGRADE_COSTS = [100, 300, 600]; // cost for level 1, 2, 3
 export const ACHIEVEMENT_REWARD = 75; // funds per achievement
 
 export const BIKE_COLORS: { name: string; color: RGB }[] = [
-  { name: 'Moto Orange', color: [255, 90, 10] },
+  { name: 'MotoHub Red', color: [237, 47, 54] },
   { name: 'Factory Blue', color: [20, 90, 220] },
   { name: 'Team Green', color: [60, 175, 45] },
-  { name: 'Race Red', color: [220, 30, 35] },
+  { name: 'Moto Orange', color: [255, 90, 10] },
   { name: 'Retro Yellow', color: [245, 200, 20] },
   { name: 'Works White', color: [235, 232, 225] },
   { name: 'Magenta Works', color: [200, 30, 120] },

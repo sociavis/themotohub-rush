@@ -39,7 +39,7 @@ function renderMenu(): void {
     <div class="mm-content">
       <div class="mm-logo">
         ${logoSvg}
-        <div class="mm-subtitle" style="color:${p};opacity:0.9;font-weight:900;letter-spacing:0.55em;text-indent:0.55em;font-size:clamp(15px,3vw,21px)">RUSH</div>
+        <div class="mm-subtitle" style="color:${p};opacity:0.95;font-family:'Bring Race','Archivo Black',sans-serif;letter-spacing:0.45em;text-indent:0.45em;font-size:clamp(20px,4vw,30px)">RUSH</div>
       </div>
       <div class="mm-rider-info">
         <div class="mm-rider-row"><span class="mm-label" style="color:${rgba(t.primary, 0.35)}">RIDER</span> <span style="color:${s}">${greeting}</span></div>
@@ -48,22 +48,22 @@ function renderMenu(): void {
       <div class="mm-buttons">
         <button class="mm-btn mm-btn-race" data-action="race" style="border-color:${rgba(t.primary, 0.5)};color:${p}">
           <span class="mm-btn-icon">⚑</span>
-          <span class="mm-btn-label">RACE</span>
+          <span class="mm-btn-label" style="font-family:'Bring Race','Archivo Black',sans-serif;letter-spacing:0.12em">RACE</span>
           <span class="mm-btn-arrow" style="color:${rgba(t.primary, 0.3)}">→</span>
         </button>
         <button class="mm-btn" data-action="shop" style="border-color:${rgba(t.primary, 0.2)};color:${rgba(t.primary, 0.8)}">
           <span class="mm-btn-icon">◆</span>
-          <span class="mm-btn-label">GARAGE</span>
+          <span class="mm-btn-label" style="font-family:'Bring Race','Archivo Black',sans-serif;letter-spacing:0.12em">GARAGE</span>
           <span class="mm-btn-arrow" style="color:${rgba(t.primary, 0.2)}">→</span>
         </button>
         <button class="mm-btn" data-action="profile" style="border-color:${rgba(t.primary, 0.2)};color:${rgba(t.primary, 0.8)}">
           <span class="mm-btn-icon">◉</span>
-          <span class="mm-btn-label">PROFILE</span>
+          <span class="mm-btn-label" style="font-family:'Bring Race','Archivo Black',sans-serif;letter-spacing:0.12em">PROFILE</span>
           <span class="mm-btn-arrow" style="color:${rgba(t.primary, 0.2)}">→</span>
         </button>
         <button class="mm-btn" data-action="achievements" style="border-color:${rgba(t.primary, 0.2)};color:${rgba(t.primary, 0.8)}">
           <span class="mm-btn-icon">★</span>
-          <span class="mm-btn-label">ACHIEVEMENTS</span>
+          <span class="mm-btn-label" style="font-family:'Bring Race','Archivo Black',sans-serif;letter-spacing:0.12em">ACHIEVEMENTS</span>
           <span class="mm-btn-arrow" style="color:${rgba(t.primary, 0.2)}">→</span>
         </button>
       </div>

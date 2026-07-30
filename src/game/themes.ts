@@ -1,15 +1,14 @@
 import * as THREE from 'three';
 import type { Theme, RGB } from './types';
 
-// Single motocross palette — moto orange, dirt neutrals, race red.
-// (Old neon themes removed as part of the realistic-MX overhaul.)
+// Single palette matched to the TheMotoHub logo: TMH red, white, silver, black.
 export const THEMES: Theme[] = [
   {
-    name: 'MOTO',
-    primary: [255, 90, 10],     // moto orange
-    secondary: [255, 240, 220], // warm white (HUD values)
-    accent: [227, 30, 36],      // race red
-    bg: [16, 13, 10],           // dark earth
+    name: 'MOTOHUB',
+    primary: [237, 47, 54],     // TMH red (logo gradient mid)
+    secondary: [248, 250, 252], // white (HUD values)
+    accent: [184, 192, 199],    // logo silver
+    bg: [14, 13, 13],           // near-black (logo outline)
     grid: [120, 90, 60],        // unused (legacy)
   },
 ];
