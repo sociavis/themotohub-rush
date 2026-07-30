@@ -1,7 +1,13 @@
-# Socia MX
+# TheMotoHub RUSH
 
 A 3D motocross time-attack game built with Three.js + TypeScript + Vite, with a
-Vercel serverless backend (auth, leaderboards, progress sync).
+Vercel serverless backend (auth, leaderboards, progress sync). Built by Socia
+Visual for TheMotoHub's arcade.
+
+Bike model: based on "(FREE) Honda CRF 450" by
+[Jacobdesigns](https://sketchfab.com/Jacobdesigns) on Sketchfab, licensed
+[CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/) (de-badged and
+re-rigged for the game).
 
 **Play:** https://socia-visual-mx.vercel.app
 

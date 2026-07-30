@@ -13,12 +13,20 @@ export interface Theme {
 export type RGB = [number, number, number];
 
 // ── Track ──
+// Obstacle vocabulary (all `at`/`len` in 0..1 spline space):
+//   hill     — smooth roller, cosine profile
+//   berm     — banked turn assist (side: -1 left / 1 right)
+//   tabletop — ramp up, flat top, ramp down (safe jump)
+//   double   — takeoff + gap + landing ramp; clearing it is faster, casing costs speed
+//   whoops   — `count` small evenly-spaced bumps over `len` (skim at speed)
+//   rhythm   — alternating small/medium rollers over `len` (flow section)
 export interface TrackObstacle {
-  type: 'hill' | 'berm';
+  type: 'hill' | 'berm' | 'tabletop' | 'double' | 'whoops' | 'rhythm';
   at: number;
   h?: number;
   len?: number;
   side?: number;
+  count?: number;
 }
 
 export interface TrackDef {
@@ -49,6 +57,8 @@ export interface BikeState {
   wheelie: boolean;
   wheelieBalance: number; // -1 to 1, 0 = perfect balance
   wheelieTime: number;
+  vy: number;             // vertical velocity while terrain-following (m/s)
+  pitch: number;          // smoothed chassis pitch (rad, negative = nose up)
 }
 
 // ── Timer / Race State ──

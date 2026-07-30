@@ -119,7 +119,7 @@ function renderLoggedOut(ws: HTMLElement): void {
 
   ws.querySelector('.ws-content')!.innerHTML = `
     <div class="ws-title">Welcome, Rider</div>
-    <div class="ws-subtitle">Socia Visual MX</div>
+    <div class="ws-subtitle">TheMotoHub RUSH</div>
     <div class="ws-form-tabs">
       <button class="ws-tab active" id="wsTabLogin">Login</button>
       <button class="ws-tab" id="wsTabRegister">Register</button>

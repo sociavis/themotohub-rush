@@ -80,9 +80,54 @@ s4.add(mxRoostPoints);
 s4.add(bikeGroup);
 
 // ── Precomputed Height / Berm LUTs ──
-const TRACK_LUT_RES = 1000;
+const TRACK_LUT_RES = 2000;
 const _heightLUT = new Float32Array(TRACK_LUT_RES + 1);
 const _bermLUT = new Float32Array(TRACK_LUT_RES + 1);
+
+// smoothstep 0..1
+const sstep = (p: number) => p <= 0 ? 0 : p >= 1 ? 1 : p * p * (3 - 2 * p);
+
+// Height profile of one obstacle at local progress p (0..1 across its length).
+// Returns height in world units.
+function obstacleProfile(ob: import('./types').TrackObstacle, p: number): number {
+  const H = ob.h || 2;
+  switch (ob.type) {
+    case 'hill':
+      return H * (1 - Math.cos(p * Math.PI * 2)) / 2;
+    case 'tabletop': {
+      // 30% face up, 40% deck, 30% landing ramp
+      if (p < 0.3) return H * sstep(p / 0.3);
+      if (p < 0.7) return H;
+      return H * sstep((1 - p) / 0.3);
+    }
+    case 'double': {
+      // steep takeoff (0-25%), gap dips to 30% (25-55%), landing knuckle + downramp
+      if (p < 0.25) return H * sstep(p / 0.25);
+      if (p < 0.55) {
+        const g = (p - 0.25) / 0.3;
+        return H * (1 - Math.sin(g * Math.PI) * 0.7);
+      }
+      if (p < 0.7) return H * (0.3 + 0.7 * sstep((p - 0.55) / 0.15)); // rise to landing crest
+      return H * sstep((1 - p) / 0.3);
+    }
+    case 'whoops': {
+      const n = ob.count || 6;
+      // envelope fades bumps in/out at section edges
+      const env = Math.sin(p * Math.PI);
+      return H * env * (1 - Math.cos(p * n * Math.PI * 2)) / 2;
+    }
+    case 'rhythm': {
+      const n = ob.count || 4;
+      const env = Math.sin(p * Math.PI);
+      // alternating amplitude: small, big, small, big…
+      const cyc = p * n;
+      const amp = Math.floor(cyc) % 2 === 0 ? 0.55 : 1;
+      return H * env * amp * (1 - Math.cos((cyc % 1) * Math.PI * 2)) / 2;
+    }
+    default:
+      return 0;
+  }
+}
 
 function buildTrackLUT(): void {
   const trk = MX_TRACKS[mxTrackIdx];
@@ -90,17 +135,17 @@ function buildTrackLUT(): void {
     const tP = i / TRACK_LUT_RES;
     let h = 0, b = 0;
     for (const ob of trk.obs) {
-      if (ob.type === 'hill') {
-        const spread = ob.len || 0.12;
-        if (tP >= ob.at && tP <= ob.at + spread) {
-          const p = (tP - ob.at) / spread;
-          h = (ob.h || 0) * (1 - Math.cos(p * Math.PI * 2)) / 2;
-        }
-      } else if (ob.type === 'berm') {
-        const w = 0.06;
+      if (ob.type === 'berm') {
+        const w = ob.len || 0.06;
         if (tP >= ob.at && tP < ob.at + w) {
           const p = (tP - ob.at) / w;
           b = (ob.side || 0) * Math.sin(p * Math.PI) * 0.4;
+        }
+      } else {
+        const spread = ob.len || 0.12;
+        if (tP >= ob.at && tP <= ob.at + spread) {
+          const p = (tP - ob.at) / spread;
+          h = Math.max(h, obstacleProfile(ob, p));
         }
       }
     }
@@ -110,8 +155,13 @@ function buildTrackLUT(): void {
 }
 
 export function getTrackHeight(tParam: number): number {
-  const idx = Math.round(tParam * TRACK_LUT_RES);
-  return _heightLUT[Math.min(idx, TRACK_LUT_RES)];
+  // wrap + linear interpolation — physics reads slopes from this, steps hurt
+  const tw = ((tParam % 1) + 1) % 1;
+  const f = tw * TRACK_LUT_RES;
+  const i0 = Math.floor(f);
+  const i1 = Math.min(i0 + 1, TRACK_LUT_RES);
+  const fr = f - i0;
+  return _heightLUT[i0] * (1 - fr) + _heightLUT[i1] * fr;
 }
 
 export function getBerm(tParam: number): number {
@@ -177,7 +227,7 @@ export function buildTrack(): void {
   const t0tan = mxSpline.getTangentAt(0).normalize();
   startZone.set(t0pt.x - t0tan.x * 5, 0, t0pt.z - t0tan.z * 5);
 
-  const RES = 600;
+  const RES = 900;
   const leftPts: THREE.Vector3[] = [], rightPts: THREE.Vector3[] = [];
   const tangents: THREE.Vector3[] = [], normals: THREE.Vector3[] = [], centers: THREE.Vector3[] = [];
   for (let i = 0; i <= RES; i++) {
@@ -244,7 +294,7 @@ export function buildTrack(): void {
   // ── Berms (banked dirt walls) ──
   for (const ob of trk.obs) {
     if (ob.type !== 'berm') continue;
-    const w = 0.06; const bermSegs = 20;
+    const w = ob.len || 0.06; const bermSegs = 20;
     const bermVerts: number[] = [], bermIdx: number[] = [], bermUv: number[] = [];
     for (let i = 0; i <= bermSegs; i++) {
       const tP = ob.at + i / bermSegs * w;

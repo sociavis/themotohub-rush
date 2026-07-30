@@ -5,6 +5,7 @@ import { upgrades, BIKE_COLORS, buyUpgrade, buyColor, checkAchievementFunds, ACH
 import { MX_TRACKS } from '../game/tracks';
 import { fmtMXTime } from '../game/stats';
 import { getWRForTrack } from '../game/leaderboard';
+import { setRiderNumber, getRiderNumber } from '../game/bike-glb';
 import { initBikePreview, destroyBikePreview, highlightPart, previewBikeColor, refreshPreviewBike } from './bike-preview';
 
 const COIN = '◉';
@@ -75,6 +76,15 @@ function renderFullShop(el: HTMLElement): void {
   // 3D bike preview container
   html += `<div class="shop-bike-preview" id="shopBikePreview"></div>`;
 
+  // Rider number — first thing under the bike
+  html += `<div class="shop-colors-section" style="margin-top:4px">
+    <div class="shop-section-title" style="color:${rgba(t.primary, 0.7)}">RIDER NUMBER</div>
+    <div class="shop-number-row" style="display:flex;align-items:center;gap:12px;padding:6px 0 14px">
+      <input id="riderNumInput" type="number" min="0" max="999" value="${getRiderNumber()}"
+        style="width:110px;background:${rgba(t.bg, 0.6)};border:1px solid ${rgba(t.primary, 0.35)};color:${rgba(t.primary, 1)};font:700 22px 'Share Tech Mono',monospace;padding:8px 12px;text-align:center;letter-spacing:0.08em">
+    </div>
+  </div>`;
+
   // Upgrades
   for (const cat of categories) {
     const lvl = upgrades[cat.key];
@@ -130,6 +140,14 @@ function renderFullShop(el: HTMLElement): void {
 
   // Event listeners
   el.querySelector('#shopBack')?.addEventListener('click', goBack);
+
+  // Rider number → repaint plates live
+  const numInput = el.querySelector('#riderNumInput') as HTMLInputElement | null;
+  numInput?.addEventListener('input', () => {
+    const v = Math.max(0, Math.min(999, parseInt(numInput.value) || 0));
+    setRiderNumber(v);
+    localStorage.setItem('mx_rider_num', String(v));
+  });
 
   // Upgrade hover → highlight part on bike
   el.querySelectorAll('.shop-upgrade-card').forEach(card => {

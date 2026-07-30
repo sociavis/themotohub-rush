@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { upgrades, BIKE_COLORS } from '../game/shop';
 import { createBikeModel, type BikeRefs, type BikePart } from '../game/bike';
+import { loadGlbBike, cloneGlbBike, type GlbBikeRig } from '../game/bike-glb';
 
 // ── Garage 3D preview — studio turntable using the shared bike factory ──
 
@@ -12,6 +13,7 @@ let rafId = 0;
 
 let highlightedPart: BikePart | null = null;
 let previewColor: THREE.Color | null = null;
+let pGlb: GlbBikeRig | null = null;
 
 function currentColor(): THREE.Color {
   const c = BIKE_COLORS[upgrades.bikeColor].color;
@@ -64,6 +66,17 @@ export function initBikePreview(el: HTMLElement): void {
   pBike = createBikeModel(previewColor ?? currentColor(), '7');
   pScene.add(pBike.group);
   pBike.group.position.y = -0.01;
+  // Hero GLB (CRF450) replaces the procedural model once loaded
+  pGlb = null;
+  loadGlbBike().then(rig => {
+    if (!rig || !pScene || !pBike) return;
+    pGlb = cloneGlbBike();
+    if (!pGlb) return;
+    pBike.group.visible = false;
+    pGlb.root.position.y = -0.01;
+    pGlb.tintMats.forEach(m => m.color.copy(previewColor ?? currentColor()));
+    pScene.add(pGlb.root);
+  });
 
   const t0 = performance.now();
   const tick = (): void => {
@@ -71,6 +84,7 @@ export function initBikePreview(el: HTMLElement): void {
     if (!pR || !pScene || !pCam || !pBike) return;
     const t = (performance.now() - t0) / 1000;
     pBike.group.rotation.y = t * 0.55;
+    if (pGlb) { pGlb.root.rotation.y = t * 0.55; pGlb.spin(0.02); }
     // highlight pulse
     if (highlightedPart) {
       const glow = (Math.sin(t * 6) + 1) * 0.25 + 0.15;
@@ -92,7 +106,7 @@ export function destroyBikePreview(): void {
     pR.dispose();
     if (pR.domElement.parentElement) pR.domElement.parentElement.removeChild(pR.domElement);
   }
-  pR = null; pScene = null; pCam = null; pBike = null;
+  pR = null; pScene = null; pCam = null; pBike = null; pGlb = null;
   highlightedPart = null;
 }
 
@@ -121,6 +135,7 @@ export function previewBikeColor(color: number[] | null): void {
   if (pBike) {
     const c = previewColor ?? currentColor();
     pBike.bodyMats.forEach(m => m.color.copy(c));
+    pGlb?.tintMats.forEach(m => m.color.copy(c));
   }
 }
 
@@ -129,5 +144,6 @@ export function refreshPreviewBike(): void {
   if (pBike) {
     const c = currentColor();
     pBike.bodyMats.forEach(m => m.color.copy(c));
+    pGlb?.tintMats.forEach(m => m.color.copy(c));
   }
 }

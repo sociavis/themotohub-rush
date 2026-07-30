@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { lerp, dst, T } from './game/themes';
 import { R, scene, camera, cam } from './game/renderer';
-import { I, mob, setupInputListeners, updateMouse3D, getCursorRing, arrowLeft, arrowRight, arrowUp } from './game/input';
+import { I, mob, setupInputListeners, updateMouse3D, getCursorRing, arrowLeft, arrowRight, arrowUp, arrowDown } from './game/input';
 import { isSoundOn, sndClick, sndShockwave, sndSectionChange, sndAchievement, sndCheckpoint, sndLanding, sndJump, sndWheelie, sndWheelieEnd, sndSkid, startEngine, updateEngine, stopEngine } from './game/audio';
 import { parts, Pt, MAXP, syncParticles, shocks, mkShock } from './game/particles';
-import { mxBike, bikeGroup, resetBike, fWheelGroup, rWheelGroup, updateSuspension } from './game/bike';
-import { createRider } from './game/rider';
+import { mxBike, bikeGroup, resetBike, updateSuspension, spinWheels, initHeroBike } from './game/bike';
+import { setRiderNumber } from './game/bike-glb';
 import {
   mxTrackIdx, mxSpline, mxSplineLen, mxCPMeshes, s4,
   buildTrack, setVis, getTrackHeight, getBerm, nextTrack, setTrackIdx,
@@ -21,7 +21,7 @@ import { initContact } from './ui/contact';
 import { startLoading } from './ui/loading';
 import { initSoundToggle } from './game/sound-toggle';
 import type { MXTimer } from './game/types';
-import { isLoggedIn, updateBestTime, getServerAchievements, getServerUpgrades, saveProgressToServer, getToken } from './game/auth';
+import { isLoggedIn, getUser, updateBestTime, getServerAchievements, getServerUpgrades, saveProgressToServer, getToken } from './game/auth';
 import { submitLapTime, fetchLeaderboard, fetchWorldRecord, getWRForTrack } from './game/leaderboard';
 import { initShop, applyUpgrades, checkAchievementFunds, getSuspensionBonus, getTireGrip, mergeServerUpgrades, getUpgradeSaveData, onBikeColorChange } from './game/shop';
 import { initLeaderboardUI } from './ui/leaderboard-ui';
@@ -65,10 +65,7 @@ setInterval(updateRotateGuard, 800);
 let mxGameActive = false;
 let mxAccel = false;
 
-// ── Rider (procedural figure riding the bike) ──
-const rider = createRider();
-bikeGroup.add(rider.group);
-onBikeColorChange(c => rider.setJerseyColor(c));
+// Rider figure removed for now — a dedicated rider model import is planned.
 
 // ── Suspension spring state ──
 let fComp = 0, fVel = 0, rComp = 0, rVel = 0;
@@ -276,12 +273,23 @@ function cycleHint(): void {
 }
 
 // ── MX Update ──
+const GRAV = 16;              // gravity while airborne (m/s²) — snappy MX arcs
+let mxGroundSlope = 0;        // dh/ds at the bike (positive = climbing)
+
+// Terrain slope (rise per meter of travel) at spline position tP
+function groundSlopeAt(tP: number): number {
+  if (mxSplineLen <= 0) return 0;
+  const d = 0.0015;
+  return (getTrackHeight(tP + d) - getTrackHeight(tP - d)) / (2 * d * mxSplineLen);
+}
+
 function updateMX(t: number): void {
   if (!mxGameActive || !mxSpline) return;
   const dt = Math.min(0.033, 1 / 60);
   let curPt = mxSpline.getPointAt(mxBike.t);
   let curTan = mxSpline.getTangentAt(mxBike.t).normalize();
   let curNorm = new THREE.Vector3(-curTan.z, 0, curTan.x);
+  mxGroundSlope = groundSlopeAt(mxBike.t);
 
   // Steering (mouse, touch, or arrow keys)
   let latTarget = 0;
@@ -325,16 +333,22 @@ function updateMX(t: number): void {
   // Cornering speed loss (gentle — realistic MX bikes hold speed through turns)
   const corneringLoss = 1 - Math.abs(mxBike.driftFactor) * 0.012 * getTireGrip();
 
-  // Speed (arrow up also accelerates)
-  if ((mxAccel || arrowUp) && mxTimer.running) {
+  // Speed (arrow up also accelerates, arrow down brakes hard)
+  const braking = arrowDown && mxTimer.running && !mxBike.airborne;
+  if (braking) {
+    // Active brake — strong, grip-dependent deceleration
+    mxBike.speed = Math.max(0, mxBike.speed - mxBike.brake * terrainFriction * dt * 1.4);
+  } else if ((mxAccel || arrowUp) && mxTimer.running) {
     const targetSpeed = mxBike.maxSpeed;
     const ratio = mxBike.speed / targetSpeed;
     const launchBoost = mxBike.speed < 4 ? 3.5 : mxBike.speed < 8 ? 1.6 : 1;
-    const accelF = (1 - ratio * ratio) * mxBike.accel * dt * 0.22 * launchBoost * terrainFriction;
+    // Slope load: climbing bleeds drive, descending adds a touch
+    const slopeLoad = 1 - Math.max(-0.5, Math.min(0.5, mxGroundSlope)) * 0.55;
+    const accelF = (1 - ratio * ratio) * mxBike.accel * dt * 0.22 * launchBoost * terrainFriction * slopeLoad;
     mxBike.speed = Math.min(mxBike.speed + accelF, targetSpeed);
     mxBike.speed *= corneringLoss;
   } else if (mxTimer.running) {
-    // Progressive braking — coast speed depends on how long not accelerating
+    // Coast — engine braking toward cruise speed
     const coastTarget = mxBike.maxSpeed * 0.25 * terrainFriction;
     mxBike.speed = lerp(mxBike.speed, coastTarget, 0.018);
     mxBike.speed *= corneringLoss;
@@ -469,48 +483,65 @@ function updateMX(t: number): void {
     }
   }
 
-  // Hills / airborne
+  // ── Terrain following / airborne (unified ballistic model) ──
+  // Grounded: hOff glues to the track and vy tracks the terrain's vertical
+  // rate. The bike leaves the ground exactly when its ballistic path clears
+  // the terrain next frame — crests launch naturally (bigger speed = bigger
+  // air), ledges drop away, whoops skim at speed and ride at low speed.
   const trackH = getTrackHeight(mxBike.t);
+  mxGroundSlope = groundSlopeAt(mxBike.t);
   if (!mxBike.airborne) {
-    const nextH = getTrackHeight(Math.min(mxBike.t + 0.008, 0.999));
-    const slope = (trackH - nextH) / 0.008; // slope steepness
-    if (trackH > 0.3 && nextH < trackH - 0.08 && mxBike.speed > 4) {
+    const vyNow = (trackH - mxBike.hOff) / dt;
+    mxBike.vy = vyNow;
+    mxBike.hOff = trackH;
+    const tNext = mxBike.t + (mxBike.speed * dt) / Math.max(mxSplineLen, 1);
+    const terrainNext = getTrackHeight(tNext);
+    const ballisticNext = trackH + (mxBike.vy - GRAV * dt) * dt;
+    if (ballisticNext > terrainNext + 0.015 && mxBike.speed > 4 && mxTimer.running) {
       mxBike.airborne = true;
-      // Slope-based jump velocity — steeper slopes = bigger air
-      const slopeFactor = Math.min(slope * 0.15, 1.5);
-      mxBike.jumpVel = mxBike.speed * (0.18 + slopeFactor * 0.08);
-      mxBike.hOff = trackH; sndJump();
-    } else {
-      mxBike.hOff = trackH;
+      mxBike.jumpVel = Math.max(mxBike.vy, -2) * 1.05; // slight pop off the lip
+      mxTimer.airTime = 0;
+      if (mxBike.jumpVel > 1.8) sndJump();
     }
   } else {
-    mxBike.jumpVel -= 10 * dt; mxBike.hOff += mxBike.jumpVel * dt;
+    mxBike.jumpVel -= GRAV * dt;
+    mxBike.hOff += mxBike.jumpVel * dt;
     mxTimer.airTime += dt;
     if (mxTimer.airTime > achState.mxMaxAir) achState.mxMaxAir = mxTimer.airTime;
     if (mxBike.hOff <= trackH) {
       mxBike.hOff = trackH; mxBike.airborne = false;
-      // Landing impact — smooth landings give speed boost, hard landings penalize
-      // Suspension upgrade reduces penalties and improves boosts
+      // ── Landing quality ──
+      // Impact = how hard we hit relative to the terrain falling away under
+      // us (downslope landings are soft), pitch mismatch adds punishment.
+      const terrainVy = mxGroundSlope * mxBike.speed;
+      const relImpact = Math.max(0, terrainVy - mxBike.jumpVel);
+      const slopePitch = -Math.atan(mxGroundSlope);
+      const pitchMismatch = Math.abs(mxBike.pitch - slopePitch);
       const suspBonus = getSuspensionBonus();
-      const impactVel = Math.abs(mxBike.jumpVel);
-      if (impactVel < 2) {
-        mxBike.speed = Math.min(mxBike.speed * (1.08 + (suspBonus - 1) * 0.1), mxBike.maxSpeed * 1.12);
-      } else if (impactVel > 4) {
-        mxBike.speed *= (0.92 + (suspBonus - 1) * 0.2); // suspension absorbs hard landings
-      } else {
-        mxBike.speed = Math.min(mxBike.speed * (1.03 + (suspBonus - 1) * 0.05), mxBike.maxSpeed * 1.08);
+      if (relImpact > 2.5) {
+        // Hard hit — penalty scales with impact + bad body position
+        const pen = Math.min(0.22, relImpact * 0.018 + pitchMismatch * 0.1) * (2 - suspBonus);
+        mxBike.speed *= (1 - Math.max(0.02, pen));
+      } else if (pitchMismatch < 0.3) {
+        // Clean, slope-matched landing — carry momentum, small reward
+        mxBike.speed = Math.min(mxBike.speed * (1.04 + (suspBonus - 1) * 0.06), mxBike.maxSpeed * 1.1);
       }
-      mxBike.jumpVel = 0; sndLanding(); mxTimer.airTime = 0;
-      // Suspension slams + camera kick on landing
-      fVel += impactVel * 1.6; rVel += impactVel * 2.0;
-      camShake = Math.min(0.08 + impactVel * 0.025, 0.32);
-      // End wheelie on landing
+      mxBike.vy = terrainVy;
+      const impactVel = relImpact;
+      mxBike.jumpVel = 0;
+      if (impactVel > 1.2) sndLanding();
+      mxTimer.airTime = 0;
+      // Suspension slams + camera kick scale with real impact
+      fVel += impactVel * 1.5; rVel += impactVel * 1.9;
+      if (impactVel > 1.2) camShake = Math.min(0.05 + impactVel * 0.028, 0.32);
       if (mxBike.wheelie) { mxBike.wheelie = false; mxBike.wheelieBalance = 0; }
-      const landingParts = impactVel > 3 ? 12 : 8;
-      for (let i = 0; i < landingParts && parts.length < MAXP; i++) {
-        const a = Math.random() * Math.PI * 2;
-        const sp = 0.2 + impactVel * 0.08;
-        parts.push(new Pt(mxBike.pos.x, 0.1, mxBike.pos.z, Math.cos(a) * sp, Math.random() * 0.2 + impactVel * 0.04, Math.sin(a) * sp, T().primary, 1.2 + Math.random(), 0.1 + impactVel * 0.02));
+      if (impactVel > 1.5) {
+        const landingParts = impactVel > 4 ? 14 : 8;
+        for (let i = 0; i < landingParts && parts.length < MAXP; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const sp = 0.2 + impactVel * 0.07;
+          parts.push(new Pt(mxBike.pos.x, 0.1, mxBike.pos.z, Math.cos(a) * sp, Math.random() * 0.2 + impactVel * 0.04, Math.sin(a) * sp, T().primary, 1.2 + Math.random(), 0.1 + impactVel * 0.02));
+        }
       }
     }
   }
@@ -534,9 +565,30 @@ function updateMX(t: number): void {
   bikeGroup.position.copy(mxBike.pos);
   bikeGroup.rotation.y = mxBike.angle;
   bikeGroup.rotation.z = mxBike.lean * 0.7;
-  // Tilt: negative = front up. Wheelie: strong front-up; Airborne: slight nose-up; Accel: slight nose-up (torque feel)
-  const tiltTarget = mxBike.wheelie ? -0.65 : mxBike.airborne ? -0.2 : (mxAccel ? -0.06 : 0.02);
-  bikeGroup.rotation.x = lerp(bikeGroup.rotation.x || 0, tiltTarget, mxBike.wheelie ? 0.25 : 0.1);
+
+  // ── Chassis pitch (negative = nose up) ──
+  let pitchTarget: number;
+  let pitchRate: number;
+  if (mxBike.wheelie) {
+    pitchTarget = -0.62;
+    pitchRate = 0.25;
+  } else if (mxBike.airborne) {
+    // Follow the flight arc: nose rises off the lip, drops toward landing.
+    pitchTarget = -Math.atan2(mxBike.jumpVel, Math.max(mxBike.speed, 4)) * 0.9;
+    // Air control: throttle pulls the nose up (panic rev), brake dips it
+    // down to match downslope landings.
+    if (mxAccel || arrowUp) pitchTarget -= 0.22;
+    if (arrowDown) pitchTarget += 0.3;
+    pitchRate = 0.09;
+  } else {
+    // Grounded: match the terrain slope, plus throttle/brake weight shift
+    pitchTarget = -Math.atan(mxGroundSlope) * 0.9
+      + ((mxAccel || arrowUp) ? -0.05 : 0.015)
+      + (braking ? 0.09 : 0);
+    pitchRate = 0.22;
+  }
+  mxBike.pitch = lerp(mxBike.pitch, pitchTarget, pitchRate);
+  bikeGroup.rotation.x = mxBike.pitch;
 
   // ── Suspension travel (spring-damper on both ends) ──
   const bump = Math.abs(Math.sin(t * suspFreq)) * 0.12 * speedRatio;
@@ -552,17 +604,8 @@ function updateMX(t: number): void {
   // chassis settles into the stroke
   bikeGroup.position.y -= (fComp * 0.11 + rComp * 0.17) * 0.3;
 
-  // ── Rider pose ──
-  rider.update({
-    crouch: mxBike.airborne ? 1 : Math.min(0.85, speedRatio * 1.1),
-    back: mxBike.wheelie ? 1 : 0,
-    legOut: grounded && mxBike.speed > 4 && Math.abs(mxBike.lean) > 0.14 ? (mxBike.lean > 0 ? 1 : -1) : 0,
-    tuck: mxBike.airborne ? 0.6 : 0,
-  }, dt);
-
   // Wheel spin
-  fWheelGroup.rotation.x += mxBike.speed * dt * 4;
-  rWheelGroup.rotation.x += mxBike.speed * dt * 4;
+  spinWheels(mxBike.speed * dt * 4);
 
   // Wheelie particles
   if (mxBike.wheelie && mxBike.speed > 4 && parts.length < MAXP) {
@@ -634,6 +677,7 @@ function startGame(): void {
   // Build the first venue as a live backdrop for the menu orbit camera
   setTrackIdx(0);
   buildTrack();
+  initHeroBike();
   resetMX();
   setVis();
 
@@ -715,6 +759,10 @@ function init(): void {
   initStatsListeners(mxTimer);
   loadAchState();
   initShop();
+  // Number plates: garage override > profile racer number > default
+  const savedNum = localStorage.getItem('mx_rider_num');
+  const profileNum = getUser()?.racerNumber;
+  setRiderNumber(savedNum !== null ? parseInt(savedNum) : (profileNum || 7));
 
   initLeaderboardUI();
   initProfileUI();

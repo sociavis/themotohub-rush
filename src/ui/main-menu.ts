@@ -33,13 +33,13 @@ function renderMenu(): void {
 
   const greeting = loggedIn && user ? `${user.username} #${user.racerNumber}` : 'GUEST RIDER';
 
-  const logoSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1899 262.95" style="width:clamp(120px,28vw,220px);height:auto;display:block;margin:0 auto 12px;opacity:0.7"><g fill="${p}" stroke="none"><polygon points="467.19 167.92 533.4 95.7 247.13 95.7 267.59 73.38 799.36 73.38 713.9 166.6 807.53 166.6 892.99 73.38 959.2 1.16 510.75 1.16 510.46 .49 240.78 .49 87.79 167.92 373.56 167.92 353.1 190.24 67.33 190.24 1.12 262.46 380.52 262.46 446.73 190.24 467.19 167.92"/><polygon points="635.86 190.25 635.86 190.24 565.56 190.24 652.24 95.7 558.6 95.7 405.72 262.46 1024.51 262.46 1090.71 190.25 635.86 190.25"/><polygon points="1462.18 262.46 1897.89 262.46 1658.33 1.16 1581.55 1.16 1408.21 190.25 1273.11 190.25 1379.06 74.68 1380.26 73.37 1492.63 73.37 1558.84 1.16 984.48 1.16 832.81 166.6 926.44 166.6 1011.91 73.37 1286.63 73.37 1179.49 190.25 1113.17 190.25 1046.97 262.46 1435.63 262.46 1607.77 74.68 1632.12 74.68 1738.06 190.25 1528.38 190.25 1462.18 262.46"/></g></svg>`;
+  const logoSvg = `<img src="/brand/tmh-logo.svg" alt="TheMotoHub" style="width:clamp(130px,26vw,210px);height:auto;display:block;margin:0 auto 10px;filter:drop-shadow(0 4px 18px rgba(0,0,0,0.5))">`;
 
   el.innerHTML = `
     <div class="mm-content">
       <div class="mm-logo">
         ${logoSvg}
-        <div class="mm-subtitle" style="color:${rgba(t.primary, 0.25)}">MOTOCROSS</div>
+        <div class="mm-subtitle" style="color:${p};opacity:0.9;font-weight:900;letter-spacing:0.55em;text-indent:0.55em;font-size:clamp(15px,3vw,21px)">RUSH</div>
       </div>
       <div class="mm-rider-info">
         <div class="mm-rider-row"><span class="mm-label" style="color:${rgba(t.primary, 0.35)}">RIDER</span> <span style="color:${s}">${greeting}</span></div>

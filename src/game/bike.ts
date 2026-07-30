@@ -8,6 +8,7 @@ export const mxBike: BikeState = {
   turnSpeed: 3.8, angle: 0, airborne: false, jumpVel: 0, hOff: 0,
   lean: 0, driftFactor: 0, pos: new THREE.Vector3(), suspBob: 0,
   wheelie: false, wheelieBalance: 0, wheelieTime: 0,
+  vy: 0, pitch: 0,
 };
 
 export function resetBike(): void {
@@ -15,6 +16,7 @@ export function resetBike(): void {
   mxBike.airborne = false; mxBike.jumpVel = 0; mxBike.hOff = 0;
   mxBike.lean = 0; mxBike.driftFactor = 0; mxBike.suspBob = 0;
   mxBike.wheelie = false; mxBike.wheelieBalance = 0; mxBike.wheelieTime = 0;
+  mxBike.vy = 0; mxBike.pitch = 0;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -54,6 +56,26 @@ function tube(from: [number, number, number], to: [number, number, number], r: n
 
 function box(w: number, h: number, d: number, mat: THREE.Material): THREE.Mesh {
   return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+}
+
+// Side-profile bodywork: draw a closed outline in (z, y) bike-space via the
+// callback, extruded to `width` across the bike (x), centered on x=0.
+function profileMesh(draw: (s: THREE.Shape) => void, width: number, mat: THREE.Material, bevel = 0.006): THREE.Mesh {
+  const sh = new THREE.Shape();
+  draw(sh);
+  const g = new THREE.ExtrudeGeometry(sh, {
+    depth: width, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel,
+    bevelSegments: 2, curveSegments: 14,
+  });
+  g.rotateY(-Math.PI / 2);   // profile x → bike z, extrusion → bike x
+  g.translate(width / 2, 0, 0);
+  return new THREE.Mesh(g, mat);
+}
+
+// Curved pipe along control points
+function pipe(pts: [number, number, number][], r: number, mat: THREE.Material, rSegs = 10): THREE.Mesh {
+  const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)));
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 32, r, rSegs), mat);
 }
 
 export function createBikeModel(bodyColor: THREE.Color | number = 0xff5a0a, plateNum = '7'): BikeRefs {
@@ -203,13 +225,17 @@ export function createBikeModel(bodyColor: THREE.Color | number = 0xff5a0a, plat
   fPlate.position.set(0, -0.035, 0.06);
   fPlate.rotation.x = RAKE - 0.1;
 
-  // front fender — mounted to lower triple (does not travel)
-  const fFender = add(box(0.095, 0.02, 0.36, mkBody()), 'body', group);
-  fFender.position.set(0, 0.28, 0.56);
-  fFender.rotation.x = -0.1;
-  const fFenderTip = add(box(0.085, 0.018, 0.13, mkBody()), 'body', group);
-  fFenderTip.position.set(0, 0.245, 0.75);
-  fFenderTip.rotation.x = -0.42;
+  // front fender — curved MX arch with upturned tip, mounted to lower triple
+  const fFender = add(profileMesh(s => {
+    s.moveTo(0.30, 0.235);
+    s.quadraticCurveTo(0.42, 0.315, 0.56, 0.31);       // rise to apex
+    s.quadraticCurveTo(0.70, 0.30, 0.79, 0.255);       // sweep down
+    s.quadraticCurveTo(0.84, 0.235, 0.85, 0.27);       // tip flick
+    s.lineTo(0.80, 0.285);
+    s.quadraticCurveTo(0.70, 0.32, 0.56, 0.332);       // underside back
+    s.quadraticCurveTo(0.42, 0.335, 0.315, 0.26);
+    s.closePath();
+  }, 0.095, mkBody()), 'body', group);
 
   // ═══ FRAME ═══
   add(tube([0, 0.4, 0.3], [0.05, 0.0, -0.06], 0.016, frameMat), 'body');
@@ -230,18 +256,41 @@ export function createBikeModel(bodyColor: THREE.Color | number = 0xff5a0a, plat
   head.rotation.x = RAKE;
 
   // ═══ TANK + SHROUDS ═══
-  const tankMesh = add(box(0.125, 0.09, 0.2, bodyMat), 'body');
-  tankMesh.position.set(0, 0.33, 0.13);
-  const tankTop = add(box(0.08, 0.04, 0.14, bodyMat), 'body');
-  tankTop.position.set(0, 0.385, 0.14);
-  // radiator shrouds — angled wings hugging the tank
+  // Fuel tank — shaped side profile, humped at the filler, tucking under seat
+  const tankMesh = add(profileMesh(s => {
+    s.moveTo(0.26, 0.285);
+    s.quadraticCurveTo(0.27, 0.375, 0.20, 0.405);      // front face up to filler hump
+    s.quadraticCurveTo(0.13, 0.425, 0.05, 0.395);      // hump crest
+    s.lineTo(0.0, 0.36);                                // fall to seat junction
+    s.lineTo(0.02, 0.29);
+    s.closePath();
+  }, 0.125, bodyMat), 'body');
+  // filler cap
+  const cap = add(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.02, 12), blackPlastic), 'body');
+  cap.position.set(0, 0.418, 0.12);
+  // radiator shrouds — angular two-tone scoops flaring from tank to radiator
   for (const sx of [1, -1]) {
-    const s1 = add(box(0.02, 0.16, 0.26, bodyMat), 'body');
-    s1.position.set(sx * 0.082, 0.26, 0.17);
-    s1.rotation.set(0, -sx * 0.12, sx * 0.15);
-    const s2 = add(box(0.02, 0.1, 0.17, whitePlastic), 'body');
-    s2.position.set(sx * 0.08, 0.15, 0.2);
-    s2.rotation.set(0, -sx * 0.12, sx * 0.4);
+    const shroud = add(profileMesh(s => {
+      s.moveTo(0.34, 0.30);                             // front point
+      s.quadraticCurveTo(0.30, 0.40, 0.16, 0.41);       // top edge hugging tank
+      s.lineTo(0.02, 0.36);                             // rear top
+      s.lineTo(0.08, 0.24);                             // rear notch
+      s.lineTo(0.20, 0.20);                             // bottom rear corner
+      s.quadraticCurveTo(0.30, 0.20, 0.34, 0.30);       // scoop mouth
+      s.closePath();
+    }, 0.016, mkBody(), 0.003), 'body');
+    shroud.position.set(sx * 0.085, 0, 0.005);
+    shroud.rotation.set(0, -sx * 0.14, sx * 0.12);
+    const shroudLow = add(profileMesh(s => {
+      s.moveTo(0.33, 0.27);
+      s.lineTo(0.24, 0.185);
+      s.lineTo(0.12, 0.155);
+      s.lineTo(0.10, 0.22);
+      s.quadraticCurveTo(0.22, 0.20, 0.33, 0.27);
+      s.closePath();
+    }, 0.014, whitePlastic, 0.003), 'body');
+    shroudLow.position.set(sx * 0.078, -0.015, 0.02);
+    shroudLow.rotation.set(0, -sx * 0.14, sx * 0.3);
     // radiator behind shroud
     const rad = add(box(0.035, 0.13, 0.09, steelDark), 'engine');
     rad.position.set(sx * 0.055, 0.18, 0.24);
@@ -252,15 +301,25 @@ export function createBikeModel(bodyColor: THREE.Color | number = 0xff5a0a, plat
   }
 
   // ═══ SEAT + REAR BODY ═══
-  const seatMesh = add(box(0.1, 0.04, 0.56, seatMat), 'body');
-  seatMesh.position.set(0, 0.375, -0.13);
-  seatMesh.rotation.x = 0.05;
-  const rFender = add(box(0.095, 0.02, 0.28, bodyMat), 'body');
-  rFender.position.set(0, 0.41, -0.5);
-  rFender.rotation.x = 0.34;
-  const rTip = add(box(0.085, 0.018, 0.13, bodyMat), 'body');
-  rTip.position.set(0, 0.475, -0.66);
-  rTip.rotation.x = 0.58;
+  // Seat — long flat MX profile: dished where the rider sits, rising over
+  // the tank junction at the front and tapering at the rear
+  const seatMesh = add(profileMesh(s => {
+    s.moveTo(0.14, 0.375);                              // front, meets tank hump
+    s.quadraticCurveTo(0.0, 0.385, -0.14, 0.372);       // dish
+    s.quadraticCurveTo(-0.30, 0.375, -0.40, 0.40);      // rise to rear
+    s.lineTo(-0.41, 0.36);                              // rear face
+    s.quadraticCurveTo(-0.20, 0.335, 0.10, 0.335);      // underside
+    s.closePath();
+  }, 0.1, seatMat, 0.004), 'body');
+  // rear fender — swept curve kicking up over the rear wheel
+  const rFender = add(profileMesh(s => {
+    s.moveTo(-0.36, 0.40);
+    s.quadraticCurveTo(-0.52, 0.44, -0.66, 0.52);       // upward sweep
+    s.quadraticCurveTo(-0.72, 0.555, -0.735, 0.55);     // tip
+    s.lineTo(-0.72, 0.525);
+    s.quadraticCurveTo(-0.60, 0.47, -0.38, 0.373);      // underside back to seat
+    s.closePath();
+  }, 0.09, bodyMat), 'body');
   // side number plates
   for (const sx of [1, -1]) {
     const sp = add(box(0.018, 0.16, 0.23, plateMat), 'body');
@@ -277,6 +336,13 @@ export function createBikeModel(bodyColor: THREE.Color | number = 0xff5a0a, plat
   const headC = add(box(0.078, 0.05, 0.075, steelDark), 'engine');
   headC.rotation.x = -0.5;
   headC.position.set(0, 0.22, 0.155);
+  // cooling fins on the cylinder
+  for (let i = 0; i < 4; i++) {
+    const fin = add(box(0.104, 0.006, 0.1, steelDark), 'engine');
+    fin.rotation.x = -0.5;
+    const ft = i / 3;
+    fin.position.set(0, 0.115 + ft * 0.075, 0.095 + ft * 0.041);
+  }
   const clutch = add(new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.024, 16), engineAlu), 'engine');
   clutch.rotation.z = Math.PI / 2;
   clutch.position.set(0.068, 0.0, 0.02);
@@ -295,16 +361,20 @@ export function createBikeModel(bodyColor: THREE.Color | number = 0xff5a0a, plat
   add(tube([-0.065, -0.045, 0.02], [-0.11, -0.055, 0.09], 0.006, steelDark), 'body');
   add(tube([0.065, -0.045, 0.02], [0.1, -0.06, 0.12], 0.006, steelDark), 'body');
 
-  // ═══ EXHAUST (right side) ═══
-  add(tube([0, 0.19, 0.2], [0.07, 0.08, 0.29], 0.02, steelDark), 'engine');
-  add(tube([0.07, 0.08, 0.29], [0.095, -0.03, 0.12], 0.02, steelDark), 'engine');
-  add(tube([0.095, -0.03, 0.12], [0.095, 0.0, -0.18], 0.021, steelDark), 'engine');
-  add(tube([0.095, 0.0, -0.18], [0.082, 0.12, -0.32], 0.023, steelDark), 'engine');
-  const silencer = add(new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.034, 0.27, 12), alu), 'engine');
-  silencer.position.set(0.08, 0.16, -0.42);
+  // ═══ EXHAUST (right side) — one continuous curved header into silencer ═══
+  add(pipe([
+    [0, 0.21, 0.19],        // head exit
+    [0.06, 0.13, 0.30],     // sweep out + down
+    [0.10, -0.02, 0.18],    // down the front of the cases
+    [0.105, -0.015, -0.10], // run under the frame rail
+    [0.09, 0.06, -0.26],    // kick up toward silencer
+    [0.082, 0.135, -0.34],
+  ], 0.021, steelDark), 'engine');
+  const silencer = add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.032, 0.28, 14), alu), 'engine');
+  silencer.position.set(0.08, 0.165, -0.43);
   silencer.rotation.x = Math.PI / 2 - 0.22;
-  const endCap = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.026, 0.03, 12), blackPlastic), 'engine');
-  endCap.position.set(0.08, 0.192, -0.555);
+  const endCap = add(new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.035, 12), blackPlastic), 'engine');
+  endCap.position.set(0.08, 0.197, -0.565);
   endCap.rotation.x = Math.PI / 2 - 0.22;
 
   // ═══ REAR SWINGARM + WHEEL ═══
@@ -365,6 +435,9 @@ export const seat = bike.seatMesh;
 
 export function setBikeBodyColor(c: THREE.Color): void {
   bike.bodyMats.forEach(m => m.color.copy(c));
+  pendingColor = c.clone();
+  if (glbRig) glbRig.tintMats.forEach(m => m.color.copy(c));
+  setPlateTint(c);
 }
 
 // f/r: 0..1 suspension compression
@@ -373,4 +446,32 @@ const REAR_TRAVEL = 0.17;
 export function updateSuspension(f: number, r: number): void {
   bike.frontSlider.position.y = f * FRONT_TRAVEL;
   bike.rearSwing.rotation.x = r * REAR_TRAVEL;
+}
+
+// ═══ Hero GLB bike (CRF450) — swaps in over the procedural model ═══
+import { loadGlbBike, setPlateTint, type GlbBikeRig } from './bike-glb';
+
+let glbRig: GlbBikeRig | null = null;
+let pendingColor: THREE.Color | null = null;
+
+export function isGlbBikeActive(): boolean { return glbRig !== null; }
+
+export function initHeroBike(): void {
+  loadGlbBike().then(rig => {
+    if (!rig) return;
+    glbRig = rig;
+    // hide the procedural bodywork, keep the group as the physics anchor
+    // (the rider group is tagged by name and stays visible)
+    for (const child of [...bikeGroup.children]) {
+      if (child !== rig.root && child.name !== 'rider') child.visible = false;
+    }
+    bikeGroup.add(rig.root);
+    if (pendingColor) rig.tintMats.forEach(m => m.color.copy(pendingColor!));
+  });
+}
+
+// Wheel spin for whichever model is active
+export function spinWheels(delta: number): void {
+  if (glbRig) glbRig.spin(delta);
+  else { bike.fWheel.rotation.x += delta; bike.rWheel.rotation.x += delta; }
 }

@@ -1,4 +1,4 @@
-# Host Bridge — embedding Socia MX in a host app
+# Host Bridge — embedding TheMotoHub RUSH in a host app
 
 The contract for embedding the game in TheMotoHub (or any host) with single
 sign-on, so riders never create a second account. Everything here is
