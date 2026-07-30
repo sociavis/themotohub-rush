@@ -69,6 +69,27 @@ export async function login(username: string, password: string): Promise<{ ok: b
   }
 }
 
+// SSO login with a token minted by a host app (e.g. TheMotoHub). See BRIDGE.md.
+export async function hostLogin(hostToken: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch('/auth/host-login', {
+      method: 'POST',
+      body: JSON.stringify({ token: hostToken }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || 'Host login failed' };
+    authToken = data.token;
+    currentUser = data.user;
+    userBestTimes = data.bestTimes || {};
+    serverAchievements = data.achievementsData || '';
+    serverUpgrades = data.upgradesData || '';
+    localStorage.setItem('mx_token', data.token);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Network error' };
+  }
+}
+
 export async function logout(): Promise<void> {
   try {
     await apiFetch('/auth/logout', { method: 'POST' });

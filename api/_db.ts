@@ -43,6 +43,9 @@ export async function initDB(): Promise<void> {
   // Add columns for progress persistence (safe to run if they already exist)
   try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS achievements_data TEXT DEFAULT ''`; } catch {}
   try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS upgrades_data TEXT DEFAULT ''`; } catch {}
+  // Host-app SSO link (e.g. TheMotoHub): stable external identity, no password
+  try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS external_id TEXT`; } catch {}
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_external_id ON users(external_id) WHERE external_id IS NOT NULL`;
 
   // Create indexes if they don't exist
   await sql`CREATE INDEX IF NOT EXISTS idx_lap_records_track_time ON lap_records(track_name, lap_time ASC)`;

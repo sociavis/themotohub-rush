@@ -32,20 +32,36 @@ import { showPostRace, hidePostRace } from './ui/post-race';
 import { showFullShop, showFullProfile, showFullAchievements, hideFullScreen } from './ui/full-screens';
 
 // ── Embed mode (TheMotoHub / iframe hosting) ──
-const QP = new URLSearchParams(location.search);
-export const IS_EMBED = QP.has('embed');
-function postToHost(msg: Record<string, unknown>): void {
-  try {
-    if (window.parent !== window) {
-      window.parent.postMessage({ source: 'socia-mx', ...msg }, '*');
-    }
-  } catch { /* cross-origin host — ignore */ }
-}
+import { IS_EMBED, postToHost, initHostBridge } from './game/host-bridge';
+export { IS_EMBED };
 if (IS_EMBED) document.body.classList.add('embed');
+initHostBridge();
 
 // ── Game State ──
 type GameScreen = 'menu' | 'track-select' | 'racing' | 'post-race' | 'shop' | 'profile' | 'achievements';
 let currentScreen: GameScreen = 'menu';
+
+// ── Rotate-device hint: racing in portrait on a touch device ──
+const rotateOverlay = document.getElementById('rotateOverlay')!;
+const isTouchDevice = matchMedia('(pointer: coarse)').matches;
+let rotateHintTimer = 0;
+let rotateHintShown = false;
+function updateRotateGuard(): void {
+  const shouldShow = isTouchDevice && innerHeight > innerWidth && currentScreen === 'racing';
+  if (shouldShow && !rotateHintShown) {
+    rotateHintShown = true;
+    rotateOverlay.classList.add('show');
+    clearTimeout(rotateHintTimer);
+    rotateHintTimer = window.setTimeout(() => rotateOverlay.classList.remove('show'), 3000);
+  } else if (!shouldShow && rotateHintShown) {
+    rotateHintShown = false;
+    clearTimeout(rotateHintTimer);
+    rotateOverlay.classList.remove('show');
+  }
+}
+window.addEventListener('resize', updateRotateGuard);
+window.addEventListener('orientationchange', updateRotateGuard);
+setInterval(updateRotateGuard, 800);
 let mxGameActive = false;
 let mxAccel = false;
 

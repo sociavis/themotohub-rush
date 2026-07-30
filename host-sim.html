@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Host Simulator — Socia MX Bridge</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: ui-monospace, 'SF Mono', Menlo, monospace; background: #14110d; color: #e8e2d8; height: 100vh; display: flex; flex-direction: column; }
+  header { padding: 10px 14px; background: #1d1812; border-bottom: 1px solid #33291c; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 13px; letter-spacing: 0.12em; color: #ff5a0a; margin-right: 8px; }
+  header label { font-size: 11px; opacity: 0.6; }
+  header input, header select { background: #0f0c09; border: 1px solid #3a2e1f; color: #e8e2d8; padding: 5px 8px; font: inherit; font-size: 12px; border-radius: 3px; }
+  header input#secret { width: 130px; }
+  header input#uname { width: 110px; }
+  header input#unum { width: 50px; }
+  button { background: #ff5a0a; border: 0; color: #140d06; font: inherit; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 3px; cursor: pointer; }
+  button.alt { background: #2a2115; color: #e8e2d8; border: 1px solid #4a3a24; }
+  main { flex: 1; display: flex; min-height: 0; }
+  #frameWrap { flex: 1; background: #000; position: relative; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+  aside { width: 340px; border-left: 1px solid #33291c; display: flex; flex-direction: column; background: #17130e; }
+  aside h2 { font-size: 11px; letter-spacing: 0.14em; padding: 10px 12px 6px; color: #b09a7c; }
+  #log { flex: 1; overflow-y: auto; padding: 0 12px 12px; font-size: 11px; line-height: 1.7; }
+  .ev { border-left: 2px solid #4a3a24; padding-left: 8px; margin-bottom: 6px; word-break: break-all; }
+  .ev .t { color: #ff9a4a; }
+  .ev.out { border-color: #2f6b3a; } .ev.out .t { color: #6fd08a; }
+  .ev time { opacity: 0.4; font-size: 10px; margin-right: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TMH HOST SIM</h1>
+  <label>secret <input id="secret" value="dev-secret" autocomplete="off"></label>
+  <label>name <input id="uname" value="Scott S"></label>
+  <label>num <input id="unum" value="72" type="number"></label>
+  <label>mode
+    <select id="mode">
+      <option value="url">hostToken in URL</option>
+      <option value="msg">postMessage (sso=1)</option>
+      <option value="guest">guest</option>
+    </select>
+  </label>
+  <button id="reload">LOAD GAME</button>
+  <button id="sendAuth" class="alt">SEND host-auth</button>
+</header>
+<main>
+  <div id="frameWrap"><iframe id="game" allow="fullscreen"></iframe></div>
+  <aside>
+    <h2>BRIDGE LOG</h2>
+    <div id="log"></div>
+  </aside>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const GAME_ORIGIN = location.origin; // vite serves both this page and the game
+
+function log(dir, data) {
+  const el = document.createElement('div');
+  el.className = 'ev' + (dir === 'out' ? ' out' : '');
+  el.innerHTML = `<time>${new Date().toLocaleTimeString()}</time><span class="t">${dir === 'out' ? '→ game' : '← game'}</span> ${JSON.stringify(data)}`;
+  $('log').prepend(el);
+}
+
+const b64url = (obj) => btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+async function mintToken() {
+  const head = b64url({ alg: 'HS256', typ: 'JWT' });
+  const body = b64url({
+    sub: 'tmh:sim-' + ($('uname').value || 'rider').toLowerCase().replace(/\W+/g, '-'),
+    name: $('uname').value,
+    num: parseInt($('unum').value) || undefined,
+    country: 'United States',
+    exp: Math.floor(Date.now() / 1000) + 60,
+  });
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode($('secret').value),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${head}.${body}`));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `${head}.${body}.${sigB64}`;
+}
+
+$('reload').onclick = async () => {
+  const mode = $('mode').value;
+  let url = GAME_ORIGIN + '/?embed=1';
+  if (mode === 'url') url += '&hostToken=' + encodeURIComponent(await mintToken());
+  if (mode === 'msg') url += '&sso=1';
+  if (mode === 'guest') url += '&guest=1';
+  $('log').innerHTML = '';
+  log('out', { action: 'load', url: url.slice(0, 80) + (url.length > 80 ? '…' : '') });
+  $('game').src = url;
+};
+
+$('sendAuth').onclick = async () => {
+  const token = await mintToken();
+  const msg = { target: 'socia-mx', type: 'host-auth', token };
+  $('game').contentWindow.postMessage(msg, '*');
+  log('out', { type: 'host-auth', token: token.slice(0, 24) + '…' });
+};
+
+window.addEventListener('message', (e) => {
+  if (e.data?.source !== 'socia-mx') return;
+  log('in', e.data);
+  // Auto-respond to sso-waiting like a real host would
+  if (e.data.type === 'sso-waiting' && $('mode').value === 'msg') $('sendAuth').click();
+});
+</script>
+</body>
+</html>

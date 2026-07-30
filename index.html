@@ -378,6 +378,19 @@
 
   /* TOAST REWARD */
   .toast-reward{margin-left:8px;font-size:10px;letter-spacing:0.08em;font-weight:700}
+.rotate-overlay {
+  display: none; position: fixed; inset: 0; z-index: 90;
+  pointer-events: none;
+  background: rgba(8,6,4,0.82);
+  flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  color: rgba(255,90,10,0.9); text-align: center;
+  font-family: 'Share Tech Mono', monospace;
+}
+.rotate-overlay.show { display: flex; }
+.rotate-overlay .ro-icon { width: 56px; height: 56px; animation: ro-tilt 1.6s ease-in-out infinite; }
+.rotate-overlay .ro-text { font-size: 16px; letter-spacing: 0.2em; text-transform: uppercase; }
+.rotate-overlay .ro-sub { font-size: 11px; letter-spacing: 0.14em; opacity: 0.55; text-transform: uppercase; }
+@keyframes ro-tilt { 0%, 20% { transform: rotate(0deg); } 55%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(-90deg); } }
 </style>
 <link rel="icon" type="image/x-icon" href="https://sociavisual.com/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://sociavisual.com/favicon-16x16.png">
@@ -427,6 +440,11 @@
   <div class="hud-nav" id="hudNav" style="display:none">
   </div>
   <div id="raceCountdown" style="display:none;position:fixed;inset:0;z-index:50;align-items:center;justify-content:center;font-family:'Archivo Black',sans-serif;font-size:clamp(60px,15vw,120px);font-weight:900;color:rgba(255,90,10,0.9);text-shadow:0 0 40px rgba(255,90,10,0.5),0 0 80px rgba(255,90,10,0.2);pointer-events:none;transition:opacity 0.4s ease"></div>
+</div>
+<div class="rotate-overlay" id="rotateOverlay">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="ro-icon"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+  <div class="ro-text">Rotate your device</div>
+  <div class="ro-sub">Landscape recommended for racing</div>
 </div>
 <div class="cursor-dot" id="cdot"></div>
 <div class="cursor-ring" id="cring"></div>

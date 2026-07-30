@@ -40,6 +40,10 @@ https://socia-visual-mx.vercel.app/?embed=1&guest=1
   enables host messaging
 - `guest=1` — skips the login/welcome screen and drops straight into the menu
   (omit it if you want riders to log in for leaderboards)
+- `hostToken=<jwt>` — **single sign-on**: silently logs the rider into a game
+  account linked to the host app's user, no second account. Full contract
+  (token format, `sso=1` postMessage mode, event list, local host simulator)
+  in [BRIDGE.md](BRIDGE.md).
 
 ### Web (iframe)
 
@@ -69,6 +73,9 @@ In embed mode the game posts messages to its parent window
 | Message | Payload | When |
 | --- | --- | --- |
 | `{ type: 'ready' }` | — | game booted |
+| `{ type: 'sso-waiting' }` | — | waiting for a `host-auth` message (`sso=1`) |
+| `{ type: 'authed' }` | `user` | host SSO login succeeded |
+| `{ type: 'auth-failed' }` | `error` | host SSO failed (game continues as guest) |
 | `{ type: 'race-complete' }` | `track`, `lapTime`, `bestLap`, `newBest` | rider finishes a race |
 
 ```js

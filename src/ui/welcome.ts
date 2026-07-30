@@ -1,5 +1,6 @@
 import { T, rgba } from '../game/themes';
 import { login, register, checkSession, getUser, isLoggedIn, getUserBestTimes, logout } from '../game/auth';
+import { getUrlHostToken, tryHostLogin, setPreStartAuthHandler, postToHost } from '../game/host-bridge';
 import { fmtMXTime } from '../game/stats';
 import { MX_TRACKS } from '../game/tracks';
 
@@ -28,11 +29,40 @@ export async function showWelcomeScreen(startGame: () => void): Promise<void> {
   onReady = startGame;
   const ws = document.getElementById('welcomeScreen')!;
 
+  // Host SSO (e.g. TheMotoHub): a signed token in the URL logs the rider in
+  // silently. On failure fall through to guest (embed) or the login screen.
+  const qp = new URLSearchParams(location.search);
+  const hostToken = getUrlHostToken();
+  if (hostToken) {
+    if (await tryHostLogin(hostToken)) {
+      startGame();
+      return;
+    }
+  }
+
+  // Hosts that deliver the token via postMessage (`?embed=1&sso=1`): wait
+  // briefly for a `host-auth` message, then fall back to guest.
+  if (qp.has('sso')) {
+    const started = await new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => { setPreStartAuthHandler(null); resolve(false); }, 4000);
+      setPreStartAuthHandler((token) => {
+        tryHostLogin(token).then((ok) => {
+          if (ok) { clearTimeout(timer); setPreStartAuthHandler(null); resolve(true); }
+        });
+      });
+      postToHost({ type: 'sso-waiting' });
+    });
+    if (!started) console.warn('[socia-mx] host SSO timed out, starting as guest');
+    startGame();
+    return;
+  }
+
   const hasSession = await checkSession();
 
-  // Embedded hosts (e.g. TheMotoHub) can skip the login screen entirely
-  const qp = new URLSearchParams(location.search);
-  if (qp.has('guest')) {
+  // Embedded hosts can skip the login screen entirely. Also: if host SSO
+  // failed and there's no session to fall back on, never strand an embedded
+  // rider on a login form — start as guest.
+  if (qp.has('guest') || (!hasSession && hostToken && qp.has('embed'))) {
     startGame();
     return;
   }
