@@ -11,6 +11,28 @@ export function getUrlHostToken(): string | null {
   return QP.get('hostToken');
 }
 
+// When the host navigates to the game as a full page (rather than framing it
+// — iOS WebViews kill nested WebGL frames), ?back=<path> asks us to render a
+// return control that goes back to the host app.
+export function getBackUrl(): string | null {
+  const b = QP.get('back');
+  if (!b) return null;
+  // same-origin paths only — never navigate somewhere a query param names
+  return b.startsWith('/') && !b.startsWith('//') ? b : null;
+}
+
+export function installBackButton(): void {
+  const back = getBackUrl();
+  if (!back) return;
+  const el = document.createElement('div');
+  el.id = 'hostBack';
+  el.setAttribute('role', 'button');
+  el.setAttribute('aria-label', 'Back to TheMotoHub');
+  el.innerHTML = '&#10005;';
+  el.addEventListener('click', () => { location.href = back; });
+  document.body.appendChild(el);
+}
+
 export function postToHost(msg: Record<string, unknown>): void {
   try {
     if (window.parent !== window) {

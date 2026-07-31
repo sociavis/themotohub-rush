@@ -32,12 +32,13 @@ import { showPostRace, hidePostRace } from './ui/post-race';
 import { showFullShop, showFullProfile, showFullAchievements, hideFullScreen } from './ui/full-screens';
 
 // ── Embed mode (TheMotoHub / iframe hosting) ──
-import { IS_EMBED, postToHost, initHostBridge } from './game/host-bridge';
+import { IS_EMBED, postToHost, initHostBridge, installBackButton } from './game/host-bridge';
 import { storeGet, storeSet, storeRemove } from './game/safe-storage';
 import { url as gameUrl } from './game/base-url';
 export { IS_EMBED };
 if (IS_EMBED) document.body.classList.add('embed');
 initHostBridge();
+installBackButton();
 
 // ── Game State ──
 type GameScreen = 'menu' | 'track-select' | 'racing' | 'post-race' | 'shop' | 'profile' | 'achievements';
@@ -809,6 +810,8 @@ function startGame(): void {
     window.addEventListener('pagehide', saveOnExit);
   }
 
+  postToHost({ type: 'started' });
+
   // Build the first venue as a live backdrop for the menu orbit camera
   setTrackIdx(0);
   buildTrack();
@@ -925,6 +928,29 @@ function init(): void {
 
   // Loading screen → welcome screen → game start
   startLoading(startGame);
+
+  // Embedded diagnostics: if the frame looks blank, report what the page
+  // actually believes about itself (canvas size, GL, visibility, phase).
+  setTimeout(() => {
+    const c = document.getElementById('c3d') as HTMLCanvasElement | null;
+    const hero = document.getElementById('hero');
+    let gl = 'none';
+    try { gl = R.getContext() ? 'ok' : 'null'; } catch (e) { gl = 'throw:' + (e as Error).message; }
+    postToHost({
+      type: 'diag',
+      detail: {
+        started: gameStarted,
+        canvas: c ? `${c.width}x${c.height}` : 'missing',
+        client: c ? `${c.clientWidth}x${c.clientHeight}` : 'n/a',
+        win: `${innerWidth}x${innerHeight}`,
+        heroOpacity: hero ? getComputedStyle(hero).opacity : 'n/a',
+        loading: !!document.getElementById('loadingScreen'),
+        welcome: document.getElementById('welcomeScreen')?.className || 'n/a',
+        gl,
+        frames: __profN,
+      },
+    });
+  }, 7000);
 
   // Last-resort watchdog: whatever goes wrong upstream (stalled auth, a
   // throw in the boot chain, blocked storage in a WebView), the rider ends
