@@ -501,6 +501,29 @@ body.mob-racing .touch-controls { display: block; }
 </div>
 <div class="cursor-dot" id="cdot"></div>
 <div class="cursor-ring" id="cring"></div>
+<script>
+// Boot beacon + error relay. Runs BEFORE the module bundle so even a
+// module-level throw is reported to the host (TheMotoHub) — without this a
+// failure inside the frame is invisible and shows only a black rectangle.
+(function () {
+  function post(type, detail) {
+    try {
+      if (window.parent !== window) {
+        window.parent.postMessage({ source: 'socia-mx', type: type, detail: detail }, '*');
+      }
+    } catch (e) { /* no host */ }
+  }
+  window.__rushPost = post;
+  window.addEventListener('error', function (e) {
+    post('error', { message: e.message || String(e.error), src: e.filename, line: e.lineno, col: e.colno });
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e.reason;
+    post('error', { message: (r && (r.message || r.toString())) || 'unhandled rejection', kind: 'rejection' });
+  });
+  post('boot', { ua: navigator.userAgent.slice(0, 80), href: location.href.slice(0, 120) });
+})();
+</script>
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
