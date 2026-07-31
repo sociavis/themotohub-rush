@@ -66,11 +66,11 @@ interface PlateSpot {
   frame?: PlateFrame;                         // computed at load
 }
 const PLATE_SPOTS: PlateSpot[] = [
-  { x: 0.250, y: 0.433, rot: 0, size: 0.17, maxW: 0.15, cal: 'F1',
+  { x: 0.242, y: 0.441, rot: 0, size: 0.26, maxW: 0.19, cal: 'F1',
     region: [0.10, 0.38, 0.22, 0.66], readDir: [0, 0, 1] },   // left side plate (viewed from -x)
-  { x: 0.599, y: 0.237, rot: 0, size: 0.17, maxW: 0.15, cal: 'F2',
+  { x: 0.593, y: 0.245, rot: 0, size: 0.26, maxW: 0.19, cal: 'F2',
     region: [0.44, 0.70, 0.02, 0.42], readDir: [0, 0, -1] },  // right side plate (viewed from +x)
-  { x: 0.524, y: 0.829, rot: 0, size: 0.19, maxW: 0.24, cal: 'F3',
+  { x: 0.524, y: 0.835, rot: 0, size: 0.21, maxW: 0.24, cal: 'F3',
     region: [0.34, 0.68, 0.62, 1.0], readDir: [-1, 0, 0] },   // front plate (viewed from +z)
 ];
 // Calibration mode: paint identifying digits to observe orientation
