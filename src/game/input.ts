@@ -28,32 +28,33 @@ function setupTouchRacingControls(): void {
   const brake = document.getElementById('tcBrake');
   if (!steerZone || !nub || !gas || !brake) return;
 
-  // Floating joystick: rests bottom-left as visible UI, jumps to the thumb
-  // on touch. X steers; Y is body lean (pull = back, push = forward).
+  // Stationary joystick: fixed base bottom-left; any touch in the left zone
+  // drives the knob relative to the base centre. X steers; Y is body lean.
   let steerId: number | null = null;
   let baseX = 0, baseY = 0;
   const JOY_R = 46;         // px of knob travel for full deflection
   const restJoy = () => {
-    nub.style.left = '110px';
-    nub.style.bottom = '92px';
-    nub.style.top = 'auto';
     nub.style.setProperty('--jx', '0px');
     nub.style.setProperty('--jy', '0px');
   };
-  const knob = nub.querySelector('.tc-knob') as HTMLElement | null;
-  void knob;
 
   steerZone.addEventListener('touchstart', (e) => {
     e.preventDefault();
     if (steerId !== null) return;
     const t = e.changedTouches[0];
     steerId = t.identifier;
-    baseX = t.clientX;
-    baseY = t.clientY;
+    const r = nub.getBoundingClientRect();
+    baseX = r.left + r.width / 2;
+    baseY = r.top + r.height / 2;
     TC.active = true;
-    nub.style.left = baseX + 'px';
-    nub.style.top = baseY + 'px';
-    nub.style.bottom = 'auto';
+    // steer immediately from the initial touch position
+    let dx = t.clientX - baseX, dy = t.clientY - baseY;
+    const len0 = Math.hypot(dx, dy);
+    if (len0 > JOY_R) { dx *= JOY_R / len0; dy *= JOY_R / len0; }
+    TC.steer = Math.max(-1, Math.min(1, dx / JOY_R));
+    TC.leanY = Math.max(-1, Math.min(1, dy / JOY_R));
+    nub.style.setProperty('--jx', dx + 'px');
+    nub.style.setProperty('--jy', dy + 'px');
   }, { passive: false });
   steerZone.addEventListener('touchmove', (e) => {
     e.preventDefault();
