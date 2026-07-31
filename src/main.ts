@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { lerp, dst, T } from './game/themes';
 import { R, scene, camera, cam } from './game/renderer';
-import { I, mob, setupInputListeners, updateMouse3D, getCursorRing, arrowLeft, arrowRight, arrowUp, arrowDown } from './game/input';
+import { I, mob, TC, setupInputListeners, updateMouse3D, getCursorRing, arrowLeft, arrowRight, arrowUp, arrowDown } from './game/input';
 import { isSoundOn, sndClick, sndShockwave, sndSectionChange, sndAchievement, sndCheckpoint, sndLanding, sndJump, sndWheelie, sndWheelieEnd, sndSkid, startEngine, updateEngine, stopEngine } from './game/audio';
 import { parts, Pt, MAXP, syncParticles, shocks, mkShock } from './game/particles';
 import { mxBike, bikeGroup, resetBike, updateSuspension, spinWheels, initHeroBike, updateRiderPose } from './game/bike';
@@ -112,6 +112,7 @@ function setHUDVisible(visible: boolean): void {
     if (e) e.style.display = visible ? '' : 'none';
   }
   hudPanels.forEach(e => (e as HTMLElement).style.display = visible ? '' : 'none');
+  if (mob) document.body.classList.toggle('mob-racing', visible);
 }
 
 // ── Game Flow ──
@@ -257,7 +258,7 @@ function sectionRelease(): void {
 }
 
 // ── Hints ──
-const HINTS = [mob ? '[ Tap and hold to race — Slide to steer — Wheelie button to pop ]' : '[ Click/Arrow Up to race — Cursor or Arrow Keys to steer — Space for wheelie ]'];
+const HINTS = [mob ? '[ Left thumb steers — GAS and BRAKE on the right — WHEELIE to pop ]' : '[ Click/Arrow Up to race — Cursor or Arrow Keys to steer — Space for wheelie, Arrow Down to brake ]'];
 const hintEl = document.getElementById('hintLine')!;
 
 function cycleHint(): void {
@@ -296,6 +297,10 @@ function updateMX(t: number): void {
   let curNorm = new THREE.Vector3(-curTan.z, 0, curTan.x);
   mxGroundSlope = groundSlopeAt(mxBike.t);
 
+  // Unified inputs: desktop = mouse/keys, mobile = dedicated touch controls
+  const accelOn = mob ? TC.throttle : (mxAccel || arrowUp);
+  const brakeOn = mob ? TC.brake : arrowDown;
+
   // ═══ RIDING DYNAMICS ═══
   // Steering carries momentum and spends a shared grip budget. The track's
   // curvature consumes grip first (cornering load) — overcook a flat corner
@@ -307,7 +312,7 @@ function updateMX(t: number): void {
   if (arrowLeft || arrowRight) {
     steerIn = (arrowRight ? 1 : 0) - (arrowLeft ? 1 : 0);
   } else if (mob) {
-    steerIn = Math.max(-1, Math.min(1, (I.tx - innerWidth / 2) / (innerWidth * 0.35)));
+    steerIn = TC.active ? TC.steer : 0;
   } else {
     const toBikeX = I.mx - mxBike.pos.x;
     const toBikeZ = I.mz - mxBike.pos.z;
@@ -339,7 +344,7 @@ function updateMX(t: number): void {
   // -- grip budget (world m/s² of lateral capability) --
   let gripMax = 20 * terrainFriction * getTireGrip();
   if (onBerm) gripMax *= 2.3;
-  const spinning = (mxAccel || arrowUp) && !inAir && mxBike.speed > 0.5 && mxBike.speed < 5.5 && mxTimer.running;
+  const spinning = accelOn && !inAir && mxBike.speed > 0.5 && mxBike.speed < 5.5 && mxTimer.running;
   if (spinning) gripMax *= 0.75;
 
   const cornerLoad = mxBike.speed * mxBike.speed * Math.abs(kappa);
@@ -393,7 +398,7 @@ function updateMX(t: number): void {
   mxBike.bank = lerp(mxBike.bank, -Math.atan(bankSlope) * 0.9, 0.12);
 
   // ═══ DRIVETRAIN — 3-speed box, rpm drives torque + engine audio ═══
-  const braking = arrowDown && mxTimer.running && !mxBike.airborne;
+  const braking = brakeOn && mxTimer.running && !mxBike.airborne;
   const gearTops = [0.42, 0.76, 1.02];
   let gear = 0;
   const spdRatio = mxBike.speed / mxBike.maxSpeed;
@@ -403,12 +408,12 @@ function updateMX(t: number): void {
   const gearLo = gear === 0 ? 0 : gearTops[gear - 1];
   const rpmRaw = (spdRatio - gearLo) / (gearTops[gear] - gearLo);
   const rpmTarget = mxShiftTimer > 0 ? 0.35
-    : Math.max(0.12, Math.min(1, rpmRaw * ((mxAccel || arrowUp) ? 1 : 0.55) + (spinning ? 0.45 : 0)));
+    : Math.max(0.12, Math.min(1, rpmRaw * (accelOn ? 1 : 0.55) + (spinning ? 0.45 : 0)));
   mxBike.rpm = lerp(mxBike.rpm, rpmTarget, 0.25);
 
   if (braking) {
     mxBike.speed = Math.max(0, mxBike.speed - mxBike.brake * terrainFriction * dt * 1.4);
-  } else if ((mxAccel || arrowUp) && mxTimer.running) {
+  } else if (accelOn && mxTimer.running) {
     const targetSpeed = mxBike.maxSpeed;
     const ratio = mxBike.speed / targetSpeed;
     const launchBoost = mxBike.speed < 4 ? 3.2 : mxBike.speed < 8 ? 1.6 : 1;
@@ -667,8 +672,8 @@ function updateMX(t: number): void {
   } else if (mxBike.airborne) {
     // follow the flight arc; throttle lifts the nose, brake dips it
     pitchTarget = -Math.atan2(mxBike.jumpVel, Math.max(mxBike.speed, 4)) * 0.9;
-    if (mxAccel || arrowUp) pitchTarget -= 0.22;
-    if (arrowDown) pitchTarget += 0.3;
+    if (accelOn) pitchTarget -= 0.22;
+    if (brakeOn) pitchTarget += 0.3;
     stiff = 16; damp = 6;
   } else {
     // grounded: chassis spans front/rear wheel contact heights
@@ -676,7 +681,7 @@ function updateMX(t: number): void {
     const hF = getTrackHeight(mxBike.t + wbT);
     const hR = getTrackHeight(mxBike.t - wbT);
     pitchTarget = -Math.atan2(hF - hR, 1.2)
-      + ((mxAccel || arrowUp) ? -0.05 : 0.015)
+      + (accelOn ? -0.05 : 0.015)
       + (braking ? 0.11 : 0);
     stiff = 110; damp = 12;
   }
@@ -689,7 +694,7 @@ function updateMX(t: number): void {
   const grounded = !mxBike.airborne;
   const fTarget = !grounded ? 0
     : mxBike.wheelie ? 0.05
-    : Math.min(1, 0.22 + (mxAccel ? 0 : 0.18 * speedRatio) + bump + (arrowDown ? 0.42 : 0));
+    : Math.min(1, 0.22 + (mxAccel ? 0 : 0.18 * speedRatio) + bump + (brakeOn ? 0.42 : 0));
   const rTarget = !grounded ? 0
     : Math.min(1, 0.22 + (mxAccel ? 0.4 * speedRatio : 0) + (mxBike.wheelie ? 0.35 : 0) + bump);
   [fComp, fVel] = springStep(fComp, fVel, fTarget, dt);
@@ -741,11 +746,12 @@ function updateMX(t: number): void {
   // Visual updates
   const bikeGrounded = !mxBike.airborne && mxBike.hOff - trackH < 0.15;
   updateDustTrail(mxBike.pos, curTan, trackH, mxBike.speed, bikeGrounded);
-  updateTireTrail(mxBike.pos, curTan, mxBike.speed, mxBike.airborne);
+  updateTireTrail(mxBike.pos, curTan, mxBike.speed, mxBike.airborne,
+    0.4 + mxBike.slide * 0.6 + (brakeOn ? 0.3 : 0) + Math.abs(mxBike.lean) * 0.2, dt);
   updateRoostParticles(dt, mxBike.speed, bikeGrounded, mxBike.pos, curTan, trackH);
   updateAmbientParticles(dt, t, mxBike.pos);
 
-  if (isSoundOn()) updateEngine(0.15 + mxBike.rpm * 0.85, 1, mxAccel || arrowUp);
+  if (isSoundOn()) updateEngine(0.15 + mxBike.rpm * 0.85, 1, accelOn);
 }
 
 // ── Initialize ──

@@ -379,6 +379,34 @@
 
   /* TOAST REWARD */
   .toast-reward{margin-left:8px;font-size:10px;letter-spacing:0.08em;font-weight:700}
+.touch-controls { display: none; }
+body.mob-racing .touch-controls { display: block; }
+.tc-steer {
+  position: fixed; left: 0; bottom: 0; width: 46vw; height: 60vh; z-index: 40;
+  touch-action: none;
+}
+.tc-nub {
+  position: absolute; width: 68px; height: 68px; border-radius: 50%;
+  border: 2px solid rgba(237,47,54,0.55); background: rgba(237,47,54,0.12);
+  transform: translate(-50%, -50%); display: none; pointer-events: none;
+}
+.tc-nub::after {
+  content: ''; position: absolute; top: 50%; left: 50%; width: 26px; height: 26px;
+  border-radius: 50%; background: rgba(237,47,54,0.65);
+  transform: translate(calc(-50% + var(--nx, 0px)), -50%);
+}
+.tc-btn {
+  position: fixed; z-index: 41; display: flex; align-items: center; justify-content: center;
+  font-family: 'Bring Race','Archivo Black',sans-serif; letter-spacing: 0.1em;
+  border-radius: 14px; border: 2px solid rgba(237,47,54,0.5);
+  background: rgba(20,10,8,0.45); color: rgba(255,255,255,0.85);
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.tc-btn.active { background: rgba(237,47,54,0.5); border-color: rgba(237,47,54,0.95); }
+.tc-throttle { right: 16px; bottom: 18px; width: 108px; height: 108px; font-size: 20px; }
+.tc-brake { right: 140px; bottom: 18px; width: 84px; height: 76px; font-size: 14px; }
+body.mob-racing .wheelie-btn { display: flex !important; align-items: center; justify-content: center; left: auto; right: 140px; bottom: 108px; top: auto; width: 84px; height: 52px; padding: 0; z-index: 42; font-family: 'Bring Race','Archivo Black',sans-serif; border: 2px solid rgba(237,47,54,0.5); border-radius: 14px; background: rgba(20,10,8,0.45); color: rgba(255,255,255,0.85); }
 .rotate-overlay {
   display: none; position: fixed; inset: 0; z-index: 90;
   pointer-events: none;
@@ -437,6 +465,11 @@
   <div class="hud-nav" id="hudNav" style="display:none">
   </div>
   <div id="raceCountdown" style="display:none;position:fixed;inset:0;z-index:50;align-items:center;justify-content:center;font-family:'Bring Race','Archivo Black',sans-serif;font-size:clamp(60px,15vw,120px);font-weight:900;color:rgba(237,47,54,0.9);text-shadow:0 0 40px rgba(237,47,54,0.5),0 0 80px rgba(237,47,54,0.2);pointer-events:none;transition:opacity 0.4s ease"></div>
+</div>
+<div class="touch-controls" id="touchControls">
+  <div class="tc-steer" id="tcSteer"><div class="tc-nub" id="tcNub"></div></div>
+  <div class="tc-btn tc-brake" id="tcBrake">BRAKE</div>
+  <div class="tc-btn tc-throttle" id="tcThrottle">GAS</div>
 </div>
 <div class="rotate-overlay" id="rotateOverlay">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="ro-icon"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/></svg>

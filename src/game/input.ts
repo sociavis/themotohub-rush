@@ -17,6 +17,71 @@ export let arrowRight = false;
 export let arrowUp = false;
 export let arrowDown = false;
 
+// ── Touch racing controls (mobile): left drag-steer, right GAS/BRAKE ──
+export const TC = { steer: 0, throttle: false, brake: false, active: false };
+
+function setupTouchRacingControls(): void {
+  const steerZone = document.getElementById('tcSteer');
+  const nub = document.getElementById('tcNub');
+  const gas = document.getElementById('tcThrottle');
+  const brake = document.getElementById('tcBrake');
+  if (!steerZone || !nub || !gas || !brake) return;
+
+  let steerId: number | null = null;
+  let originX = 0;
+  const STEER_RANGE = 60;   // px of thumb travel for full lock
+
+  steerZone.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (steerId !== null) return;
+    const t = e.changedTouches[0];
+    steerId = t.identifier;
+    originX = t.clientX;
+    TC.active = true;
+    nub.style.display = 'block';
+    nub.style.left = t.clientX + 'px';
+    nub.style.top = t.clientY + 'px';
+    nub.style.setProperty('--nx', '0px');
+  }, { passive: false });
+  steerZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for (const t of Array.from(e.changedTouches)) {
+      if (t.identifier !== steerId) continue;
+      const dx = t.clientX - originX;
+      TC.steer = Math.max(-1, Math.min(1, dx / STEER_RANGE));
+      nub.style.setProperty('--nx', (TC.steer * 20) + 'px');
+    }
+  }, { passive: false });
+  const steerEnd = (e: TouchEvent) => {
+    for (const t of Array.from(e.changedTouches)) {
+      if (t.identifier !== steerId) continue;
+      steerId = null;
+      TC.steer = 0;
+      TC.active = false;
+      nub.style.display = 'none';
+    }
+  };
+  steerZone.addEventListener('touchend', steerEnd);
+  steerZone.addEventListener('touchcancel', steerEnd);
+
+  const bindBtn = (el: HTMLElement, key: 'throttle' | 'brake') => {
+    el.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      TC[key] = true;
+      el.classList.add('active');
+    }, { passive: false });
+    const end = (e: TouchEvent) => {
+      e.preventDefault();
+      TC[key] = false;
+      el.classList.remove('active');
+    };
+    el.addEventListener('touchend', end, { passive: false });
+    el.addEventListener('touchcancel', end, { passive: false });
+  };
+  bindBtn(gas, 'throttle');
+  bindBtn(brake, 'brake');
+}
+
 export const mob = matchMedia('(pointer:coarse)').matches;
 
 const cd = document.getElementById('cdot') as HTMLElement;
@@ -120,6 +185,8 @@ export function setupInputListeners(
     if (e.code === 'ArrowUp') { arrowUp = false; if (!arrowDown) { I.down = false; I.holdTime = 0; onRelease(); } }
     if (e.code === 'ArrowDown') { arrowDown = false; }
   });
+
+  if (mob) setupTouchRacingControls();
 
   // Mobile wheelie button
   const wheelieBtn = document.getElementById('wheelieBtn');

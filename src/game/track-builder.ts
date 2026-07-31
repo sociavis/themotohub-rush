@@ -32,18 +32,58 @@ export const dustLine = new THREE.Line(
 dustLine.visible = false;
 export const dustTrail: { x: number; y: number; z: number }[] = [];
 
-// ── Tire Rut Trail (dark line laid where the bike rides) ──
-export const TIRE_TRAIL_MAX = 3000;
-const tireTrailGeo = new THREE.BufferGeometry();
-const tireTrailPos = new Float32Array(TIRE_TRAIL_MAX * 3);
-tireTrailGeo.setAttribute('position', new THREE.BufferAttribute(tireTrailPos, 3));
-export const tireTrailLine = new THREE.Line(
-  tireTrailGeo,
-  new THREE.LineBasicMaterial({ color: 0x33241a, transparent: true, opacity: 0.35 }),
-);
-tireTrailLine.visible = false;
-s4.add(tireTrailLine);
-export const tireTrail: { x: number; y: number; z: number }[] = [];
+// ── Tire marks: fading rubber ribbon laid along the bike's real line ──
+export const TIRE_TRAIL_MAX = 2200;
+interface TireMark { x: number; y: number; z: number; nx: number; nz: number; a: number; age: number; d: number }
+export const tireTrail: TireMark[] = [];
+const TIRE_W = 0.15;         // half mark width
+const TIRE_LIFE = 42;        // seconds until fully faded
+const ttGeo = new THREE.BufferGeometry();
+const ttPos = new Float32Array(TIRE_TRAIL_MAX * 2 * 3);
+const ttAlpha = new Float32Array(TIRE_TRAIL_MAX * 2);
+{
+  const idx = new Uint32Array((TIRE_TRAIL_MAX - 1) * 6);
+  for (let i = 0; i < TIRE_TRAIL_MAX - 1; i++) {
+    const a = i * 2, b = i * 2 + 1, c = i * 2 + 2, d = i * 2 + 3;
+    idx.set([a, b, c, b, d, c], i * 6);
+  }
+  ttGeo.setIndex(new THREE.BufferAttribute(idx, 1));
+}
+const ttDist = new Float32Array(TIRE_TRAIL_MAX * 2);
+const ttSide = new Float32Array(TIRE_TRAIL_MAX * 2);
+ttGeo.setAttribute('position', new THREE.BufferAttribute(ttPos, 3));
+ttGeo.setAttribute('aAlpha', new THREE.BufferAttribute(ttAlpha, 1));
+ttGeo.setAttribute('aDist', new THREE.BufferAttribute(ttDist, 1));
+ttGeo.setAttribute('aSide', new THREE.BufferAttribute(ttSide, 1));
+ttGeo.setDrawRange(0, 0);
+const ttMat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  polygonOffset: true,
+  polygonOffsetFactor: -2,
+  uniforms: {},
+  vertexShader: `attribute float aAlpha; attribute float aDist; attribute float aSide;
+    varying float vA; varying float vD; varying float vS;
+    void main(){ vA = aAlpha; vD = aDist; vS = aSide;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  // Knobby dirtbike print: staggered blocks — shoulder knob columns plus an
+  // offset centre column, dug-in dark edges
+  fragmentShader: `varying float vA; varying float vD; varying float vS;
+    void main(){
+      float rows = vD * 3.0;
+      float shoulder = step(0.42, abs(vS));
+      float centre = 1.0 - step(0.30, abs(vS));
+      float dashS = step(fract(rows), 0.55);
+      float dashC = step(fract(rows + 0.5), 0.5);
+      float knob = max(shoulder * dashS, centre * dashC);
+      if (knob < 0.5) discard;
+      gl_FragColor = vec4(0.12, 0.08, 0.045, vA);
+    }`,
+});
+export const tireTrailMesh = new THREE.Mesh(ttGeo, ttMat);
+tireTrailMesh.frustumCulled = false;
+tireTrailMesh.renderOrder = 1;
+s4.add(tireTrailMesh);
 
 // ── Ambient Dust Motes ──
 export const mxAmbientParts: { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; ml: number }[] = [];
@@ -434,7 +474,6 @@ export function buildTrack(): void {
   // Particle colors follow the dirt
   mxRoostMat.color.set(style.dirt);
   mxAmbMat.color.set(style.dirt);
-  (tireTrailLine.material as THREE.LineBasicMaterial).color.set(style.trackRut);
 }
 
 // ── Environment props ──
@@ -804,7 +843,7 @@ function setAtmosphere(trk: TrackDef): void {
 export function setVis(): void {
   s4.visible = true;
   bikeGroup.visible = true;
-  tireTrailLine.visible = true;
+  tireTrailMesh.visible = true;
   mxAmbPoints.visible = true;
   mxRoostPoints.visible = true;
   mxTrackMeshes.forEach(m => (m as any).visible = true);
@@ -814,22 +853,43 @@ export function updateDustTrail(_bikePos: THREE.Vector3, _curTan: THREE.Vector3,
   // Legacy no-op — dust is now handled by the roost particle system.
 }
 
-export function updateTireTrail(bikePos: THREE.Vector3, curTan: THREE.Vector3, speed: number, airborne: boolean): void {
-  if (speed > 1 && !airborne) {
-    const lastTire = tireTrail[tireTrail.length - 1];
-    const tx = bikePos.x - curTan.x * 0.4, tz = bikePos.z - curTan.z * 0.4;
-    if (!lastTire || Math.hypot(tx - lastTire.x, tz - lastTire.z) > 0.3) {
+export function updateTireTrail(bikePos: THREE.Vector3, curTan: THREE.Vector3, speed: number, airborne: boolean, intensity = 0.5, dt = 1 / 60): void {
+  // drop a mark behind the rear wheel while planted
+  if (speed > 2 && !airborne) {
+    const last = tireTrail[tireTrail.length - 1];
+    const tx = bikePos.x - curTan.x * 0.42, tz = bikePos.z - curTan.z * 0.42;
+    if (!last || Math.hypot(tx - last.x, tz - last.z) > 0.28) {
       if (tireTrail.length >= TIRE_TRAIL_MAX) tireTrail.shift();
-      tireTrail.push({ x: tx, y: 0.06, z: tz });
+      // perpendicular for the quad strip
+      const nx = -curTan.z, nz = curTan.x;
+      const dist = last ? last.d + Math.hypot(tx - last.x, tz - last.z) : 0;
+      tireTrail.push({ x: tx, y: bikePos.y - 0.315, z: tz, nx, nz, a: Math.min(0.7, 0.3 + intensity * 0.5), age: 0, d: dist });
     }
   }
-  const geo = tireTrailLine.geometry as THREE.BufferGeometry;
-  const ttp = geo.attributes.position.array as Float32Array;
-  for (let i = 0; i < tireTrail.length; i++) {
-    ttp[i * 3] = tireTrail[i].x; ttp[i * 3 + 1] = tireTrail[i].y; ttp[i * 3 + 2] = tireTrail[i].z;
+  // age + rebuild ribbon
+  const n = tireTrail.length;
+  for (let i = 0; i < n; i++) {
+    const m = tireTrail[i];
+    m.age += dt;
+    const fade = Math.max(0, 1 - m.age / TIRE_LIFE);
+    const alpha = m.a * fade;
+    const j = i * 2;
+    ttPos[j * 3] = m.x + m.nx * TIRE_W; ttPos[j * 3 + 1] = m.y; ttPos[j * 3 + 2] = m.z + m.nz * TIRE_W;
+    ttPos[j * 3 + 3] = m.x - m.nx * TIRE_W; ttPos[j * 3 + 4] = m.y; ttPos[j * 3 + 5] = m.z - m.nz * TIRE_W;
+    ttAlpha[j] = alpha; ttAlpha[j + 1] = alpha;
+    ttDist[j] = m.d; ttDist[j + 1] = m.d;
+    ttSide[j] = 1; ttSide[j + 1] = -1;
+    // break the strip across gaps (respawn/teleport) by collapsing alpha
+    if (i > 0) {
+      const prev = tireTrail[i - 1];
+      if (Math.hypot(m.x - prev.x, m.z - prev.z) > 1.2) { ttAlpha[j] = 0; ttAlpha[j + 1] = 0; }
+    }
   }
-  geo.attributes.position.needsUpdate = true;
-  geo.setDrawRange(0, tireTrail.length);
+  ttGeo.attributes.position.needsUpdate = true;
+  (ttGeo.attributes as Record<string, THREE.BufferAttribute>).aAlpha.needsUpdate = true;
+  (ttGeo.attributes as Record<string, THREE.BufferAttribute>).aDist.needsUpdate = true;
+  (ttGeo.attributes as Record<string, THREE.BufferAttribute>).aSide.needsUpdate = true;
+  ttGeo.setDrawRange(0, n > 1 ? (n - 1) * 6 : 0);
 }
 
 export function updateRoostParticles(dt: number, speed: number, bikeGrounded: boolean, bikePos: THREE.Vector3, curTan: THREE.Vector3, trackH: number): void {
