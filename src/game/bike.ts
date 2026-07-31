@@ -465,7 +465,7 @@ let pendingColor: THREE.Color | null = null;
 
 // Rider hips mount in bike space (the rig's RIDER-ATTATCH bone sits inside
 // the engine, so we place the hips at real seat height ourselves)
-export const RIDER_MOUNT = { x: 0, y: 0.46, z: -0.12, ry: 0 };
+export const RIDER_MOUNT = { x: 0, y: 0.605, z: -0.235, ry: 0 };
 
 export function isGlbBikeActive(): boolean { return glbRig !== null; }
 

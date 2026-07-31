@@ -34,10 +34,10 @@ export interface RiderRig {
 }
 
 // Rider height in game units (bike wheelbase 1.2 ≈ 1.48 m → 1.6 m rider ≈ 1.3)
-const RIDER_HEIGHT = 1.06;
+const RIDER_HEIGHT = 1.1;
 
 // Live-tunable fit offsets (rider calibration in debug-bike.html)
-export const RIDER_TUNE = { footUp: 0.055, footOut: 0, handUp: 0.035, handOut: 0 };
+export const RIDER_TUNE = { footUp: 0.16, footOut: 0.105, handUp: 0.06, handOut: 0.035 };
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -287,7 +287,7 @@ function buildRig(scene: THREE.Group): RiderRig | null {
 
   // Body proportions: bone scales cascade down the chain, so children get
   // inverse-compensated (legs carry the feet, arms carry the hands).
-  const shape = { legLen: 1, armLen: 1, footSize: 1 };
+  const shape = { legLen: 0.92, armLen: 0.95, footSize: 0.91 };
   const setBodyShape = (p: { legLen?: number; armLen?: number; footSize?: number }): void => {
     Object.assign(shape, p);
     bones.lUpLeg.scale.setScalar(shape.legLen);
@@ -315,6 +315,9 @@ function buildRig(scene: THREE.Group): RiderRig | null {
       }
     });
   };
+
+  // apply the calibrated proportions to the bind pose before first solve
+  setBodyShape({});
 
   return { root, attach, update, setJerseyColor, setHeight, setBodyShape };
 }

@@ -43,7 +43,7 @@ setRiderNumber(parseInt(new URLSearchParams(location.search).get('num') || '739'
 // Rider mounted at the seat (same offsets as the game)
 const rider = await loadGlbRider();
 if (rider) {
-  rider.root.position.set(0, 0.46, -0.12);
+  rider.root.position.set(0, 0.605, -0.235);
   rig.root.add(rider.root);
   rig.root.updateMatrixWorld(true);
   const lg = (n, o) => console.log('[mounts]', n, o ? o.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)).join(',') : 'NULL');
@@ -99,7 +99,7 @@ let frames = 0;
 // ── rider calibration ──
 if (rider) {
   // defaults read from the LIVE mount so the first slider touch never jumps
-  const RC = { height: 1.06, mountY: rider.root.position.y, mountZ: rider.root.position.z, footUp: RIDER_TUNE.footUp, footOut: RIDER_TUNE.footOut, handUp: RIDER_TUNE.handUp, handOut: RIDER_TUNE.handOut, legLen: 1, armLen: 1, footSize: 1 };
+  const RC = { height: 1.1, mountY: rider.root.position.y, mountZ: rider.root.position.z, footUp: RIDER_TUNE.footUp, footOut: RIDER_TUNE.footOut, handUp: RIDER_TUNE.handUp, handOut: RIDER_TUNE.handOut, legLen: 1, armLen: 1, footSize: 1 };
   const rdiv = document.createElement('div');
   rdiv.className = 'plate';
   rdiv.innerHTML = `<h3>RIDER FIT</h3>` + [
