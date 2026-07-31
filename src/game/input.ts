@@ -33,8 +33,8 @@ function setupTouchRacingControls(): void {
   let baseX = 0, baseY = 0;
   const JOY_R = 46;         // px of knob travel for full deflection
   const restJoy = () => {
-    nub.style.left = '96px';
-    nub.style.bottom = '-18px';
+    nub.style.left = '110px';
+    nub.style.bottom = '92px';
     nub.style.top = 'auto';
     nub.style.setProperty('--jx', '0px');
     nub.style.setProperty('--jy', '0px');
