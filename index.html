@@ -448,11 +448,12 @@ body.mob-racing .touch-controls { display: block; }
 .rotate-overlay.show { display: flex; }
 .rotate-overlay .ro-icon { width: 56px; height: 56px; animation: ro-tilt 1.6s ease-in-out infinite; }
 .rotate-overlay .ro-text { font-size: 16px; letter-spacing: 0.2em; text-transform: uppercase; }
+.rotate-overlay .ro-tap { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; margin-top: 18px; padding: 9px 18px; border: 1px solid currentColor; border-radius: 22px; opacity: 0.9; }
 .rotate-overlay .ro-sub { font-size: 11px; letter-spacing: 0.14em; opacity: 0.55; text-transform: uppercase; }
 @keyframes ro-tilt { 0%, 20% { transform: rotate(0deg); } 55%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(-90deg); } }
 </style>
-<link rel="icon" type="image/svg+xml" href="/brand/tmh-appicon.svg">
-<link rel="apple-touch-icon" href="/brand/tmh-appicon.svg">
+<link rel="icon" type="image/svg+xml" href="./brand/tmh-appicon.svg">
+<link rel="apple-touch-icon" href="./brand/tmh-appicon.svg">
 </head>
 <body>
 <div class="loading-screen" id="loadingScreen">
@@ -474,7 +475,7 @@ body.mob-racing .touch-controls { display: block; }
   <div class="hud-panel top-right"><div class="label" id="hud-l2">Cursor Position</div><div class="value" id="hud-v2">0000 × 0000</div><div class="dim" id="hud-d3">SECTOR: A-00</div></div>
   <div class="hud-panel bottom-left"><div class="label" id="hud-l3">Network</div><div class="value" id="hud-v3">■■■■■■■■░░</div><div class="dim" id="hud-d4">UPTIME: 00:00:00</div></div>
   <div class="hud-panel bottom-right"><div class="label" id="hud-l4">Interactions</div><div class="value" id="hud-v4">PULSES: 0</div><div class="dim" id="hud-d5">ENERGY: 100%</div></div>
-  <div class="wm-logo" id="wmLogo"><img src="/brand/tmh-logo.svg" alt="TheMotoHub RUSH" style="width:100%;height:auto;opacity:0.85"></div>
+  <div class="wm-logo" id="wmLogo"><img src="./brand/tmh-logo.svg" alt="TheMotoHub RUSH" style="width:100%;height:auto;opacity:0.85"></div>
   <div class="ach-tray" id="achTray"></div>
   <div class="ach-tooltip" id="achTooltip"><div class="att-icon" id="attIcon"></div><div class="att-name" id="attName"></div><div class="att-line" id="attLine"></div><div class="att-desc" id="attDesc"></div><div class="att-source" id="attSource" style="font-size:8px;letter-spacing:0.12em;opacity:0.35;margin-top:6px"></div></div>
   <div class="bottom-bar"><div class="hint-line" id="hintLine">[ Click anywhere to deploy pulse ]</div></div>
@@ -505,6 +506,7 @@ body.mob-racing .touch-controls { display: block; }
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="ro-icon"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/></svg>
   <div class="ro-text">Rotate your device</div>
   <div class="ro-sub">Landscape recommended for racing</div>
+  <div class="ro-tap">Tap to play anyway</div>
 </div>
 <div class="cursor-dot" id="cdot"></div>
 <div class="cursor-ring" id="cring"></div>

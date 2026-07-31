@@ -44,20 +44,28 @@ installBackButton();
 type GameScreen = 'menu' | 'track-select' | 'racing' | 'post-race' | 'shop' | 'profile' | 'achievements';
 let currentScreen: GameScreen = 'menu';
 
-// ── Rotate-device hint: racing in portrait on a touch device ──
+// ── Rotate-device hint: landscape is better, but never a dead end ──
+// Hosts can be orientation-locked (TheMotoHub's iOS shell is portrait), so
+// the device physically cannot satisfy a blocking gate. Prompt, allow
+// dismissal, and remember the choice for the session.
 const rotateOverlay = document.getElementById('rotateOverlay')!;
 const isTouchDevice = matchMedia('(pointer: coarse)').matches;
-let rotateHintTimer = 0;
 let rotateHintShown = false;
+let rotateDismissed = false;
 function updateRotateGuard(): void {
-  // Touch devices play landscape, full stop — blocking gate while portrait
-  const shouldShow = isTouchDevice && innerHeight > innerWidth;
+  const shouldShow = isTouchDevice && !rotateDismissed && innerHeight > innerWidth;
   if (shouldShow !== rotateHintShown) {
     rotateHintShown = shouldShow;
     rotateOverlay.classList.toggle('show', shouldShow);
   }
-  void rotateHintTimer;
 }
+rotateOverlay.addEventListener('click', () => {
+  rotateDismissed = true;
+  rotateHintShown = false;
+  rotateOverlay.classList.remove('show');
+});
+// Landscape arriving on its own clears the prompt for good
+addEventListener('orientationchange', () => { if (innerWidth > innerHeight) rotateDismissed = false; });
 window.addEventListener('resize', updateRotateGuard);
 window.addEventListener('orientationchange', updateRotateGuard);
 setInterval(updateRotateGuard, 800);

@@ -1,6 +1,7 @@
 import { T, rgba } from '../game/themes';
 import { isLoggedIn, getUser } from '../game/auth';
 import { upgrades } from '../game/shop';
+import { url as gameUrl } from '../game/base-url';
 
 const COIN = '◉';
 
@@ -33,7 +34,7 @@ function renderMenu(): void {
 
   const greeting = loggedIn && user ? `${user.username} #${user.racerNumber}` : 'GUEST RIDER';
 
-  const logoSvg = `<img src="/brand/tmh-logo.svg" alt="TheMotoHub" style="width:clamp(130px,26vw,210px);height:auto;display:block;margin:0 auto 10px;filter:drop-shadow(0 4px 18px rgba(0,0,0,0.5))">`;
+  const logoSvg = `<img src="${gameUrl('brand/tmh-logo.svg')}" alt="TheMotoHub" style="width:clamp(130px,26vw,210px);height:auto;display:block;margin:0 auto 10px;filter:drop-shadow(0 4px 18px rgba(0,0,0,0.5))">`;
 
   el.innerHTML = `
     <div class="mm-content">
