@@ -3,10 +3,36 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/api/leaderboard/wr", "destination": "/api/leaderboard/wr" },
-    { "source": "/api/leaderboard/submit", "destination": "/api/leaderboard/submit" },
-    { "source": "/api/leaderboard/:trackName", "destination": "/api/leaderboard/[trackName]" },
-    { "source": "/api/auth/:path*", "destination": "/api/auth/:path*" },
-    { "source": "/api/health", "destination": "/api/health" }
+    {
+      "source": "/api/leaderboard/wr",
+      "destination": "/api/leaderboard/wr"
+    },
+    {
+      "source": "/api/leaderboard/submit",
+      "destination": "/api/leaderboard/submit"
+    },
+    {
+      "source": "/api/leaderboard/:trackName",
+      "destination": "/api/leaderboard/[trackName]"
+    },
+    {
+      "source": "/api/auth/:path*",
+      "destination": "/api/auth/:path*"
+    },
+    {
+      "source": "/api/health",
+      "destination": "/api/health"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://*.partzillaarenacross.com https://*.themotohub.com https://*.vercel.app capacitor://localhost http://localhost ionic://localhost"
+        }
+      ]
+    }
   ]
 }
