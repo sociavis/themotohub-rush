@@ -256,7 +256,7 @@ function sectionRelease(): void {
 }
 
 // ── Hints ──
-const HINTS = [mob ? '[ Left stick: steer + lean — lean back on the gas to wheelie — GAS / BRAKE right ]' : '[ Click/Arrow Up to race — Cursor or Arrow Keys to steer — Space for wheelie, Arrow Down to brake ]'];
+const HINTS = [mob ? '[ Left stick: steer + lean — lean back on the gas to wheelie — GAS / BRAKE right ]' : '[ W/UP gas — S/DOWN brake — A/D steer — SPACE wheelie ]'];
 const hintEl = document.getElementById('hintLine')!;
 
 function cycleHint(): void {
@@ -297,7 +297,7 @@ function updateMX(t: number): void {
   mxGroundSlope = groundSlopeAt(mxBike.t);
 
   // Unified inputs: desktop = mouse/keys, mobile = dedicated touch controls
-  const accelOn = mob ? TC.throttle : (mxAccel || arrowUp);
+  const accelOn = mob ? TC.throttle : arrowUp;
   const brakeOn = mob ? TC.brake : arrowDown;
 
   // ═══ RIDING DYNAMICS ═══
@@ -308,15 +308,10 @@ function updateMX(t: number): void {
 
   // -- steering input (-1..1) --
   let steerIn = 0;
-  if (arrowLeft || arrowRight) {
-    steerIn = (arrowRight ? 1 : 0) - (arrowLeft ? 1 : 0);
-  } else if (mob) {
+  if (mob) {
     steerIn = TC.active ? TC.steer : 0;
   } else {
-    const toBikeX = I.mx - mxBike.pos.x;
-    const toBikeZ = I.mz - mxBike.pos.z;
-    const cursorLat = Math.max(-0.9, Math.min(0.9, (toBikeX * curNorm.x + toBikeZ * curNorm.z) * 0.18));
-    steerIn = Math.max(-1, Math.min(1, (cursorLat - mxBike.lat) * 3.2));
+    steerIn = (arrowRight ? 1 : 0) - (arrowLeft ? 1 : 0);
   }
 
   // -- signed track curvature at the bike (left turn > 0), low-passed:

@@ -191,17 +191,17 @@ export function setupInputListeners(
 
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') { e.preventDefault(); I.space = true; }
-    if (e.code === 'ArrowLeft') { e.preventDefault(); arrowLeft = true; }
-    if (e.code === 'ArrowRight') { e.preventDefault(); arrowRight = true; }
-    if (e.code === 'ArrowUp') { e.preventDefault(); arrowUp = true; if (!I.down) { I.down = true; onClick(); } }
-    if (e.code === 'ArrowDown') { e.preventDefault(); arrowDown = true; }
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { e.preventDefault(); arrowLeft = true; }
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') { e.preventDefault(); arrowRight = true; }
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); arrowUp = true; if (!I.down) { I.down = true; onClick(); } }
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') { e.preventDefault(); arrowDown = true; }
   });
   document.addEventListener('keyup', (e) => {
     if (e.code === 'Space') { I.space = false; }
-    if (e.code === 'ArrowLeft') { arrowLeft = false; }
-    if (e.code === 'ArrowRight') { arrowRight = false; }
-    if (e.code === 'ArrowUp') { arrowUp = false; if (!arrowDown) { I.down = false; I.holdTime = 0; onRelease(); } }
-    if (e.code === 'ArrowDown') { arrowDown = false; }
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { arrowLeft = false; }
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') { arrowRight = false; }
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') { arrowUp = false; if (!arrowDown) { I.down = false; I.holdTime = 0; onRelease(); } }
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') { arrowDown = false; }
   });
 
   if (mob) setupTouchRacingControls();
