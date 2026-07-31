@@ -8,7 +8,7 @@ export const mxBike: BikeState = {
   turnSpeed: 3.8, angle: 0, airborne: false, jumpVel: 0, hOff: 0,
   lean: 0, driftFactor: 0, pos: new THREE.Vector3(), suspBob: 0,
   wheelie: false, wheelieBalance: 0, wheelieTime: 0,
-  vy: 0, pitch: 0,
+  vy: 0, pitch: 0, pitchVel: 0, latVel: 0, slide: 0, gear: 0, rpm: 0, bank: 0,
 };
 
 export function resetBike(): void {
@@ -16,7 +16,8 @@ export function resetBike(): void {
   mxBike.airborne = false; mxBike.jumpVel = 0; mxBike.hOff = 0;
   mxBike.lean = 0; mxBike.driftFactor = 0; mxBike.suspBob = 0;
   mxBike.wheelie = false; mxBike.wheelieBalance = 0; mxBike.wheelieTime = 0;
-  mxBike.vy = 0; mxBike.pitch = 0;
+  mxBike.vy = 0; mxBike.pitch = 0; mxBike.pitchVel = 0;
+  mxBike.latVel = 0; mxBike.slide = 0; mxBike.gear = 0; mxBike.rpm = 0; mxBike.bank = 0;
 }
 
 // ═══════════════════════════════════════════════════════════════

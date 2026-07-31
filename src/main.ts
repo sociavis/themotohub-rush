@@ -279,6 +279,7 @@ let __profN = 0, __profMX = 0, __profHUD = 0, __profRender = 0, __profFrame = 0;
 // ── MX Update ──
 const GRAV = 16;              // gravity while airborne (m/s²) — snappy MX arcs
 let mxGroundSlope = 0;        // dh/ds at the bike (positive = climbing)
+let mxShiftTimer = 0;         // gear-change clutch drop
 
 // Terrain slope (rise per meter of travel) at spline position tP
 function groundSlopeAt(tP: number): number {
@@ -295,70 +296,133 @@ function updateMX(t: number): void {
   let curNorm = new THREE.Vector3(-curTan.z, 0, curTan.x);
   mxGroundSlope = groundSlopeAt(mxBike.t);
 
-  // Steering (mouse, touch, or arrow keys)
-  let latTarget = 0;
+  // ═══ RIDING DYNAMICS ═══
+  // Steering carries momentum and spends a shared grip budget. The track's
+  // curvature consumes grip first (cornering load) — overcook a flat corner
+  // and the front washes wide; berms bank the turn and multiply grip, so
+  // railing the berm is the fast line, like real supercross.
+
+  // -- steering input (-1..1) --
+  let steerIn = 0;
   if (arrowLeft || arrowRight) {
-    const arrowDir = (arrowRight ? 1 : 0) - (arrowLeft ? 1 : 0);
-    latTarget = Math.max(-0.85, Math.min(0.85, mxBike.lat + arrowDir * mxBike.turnSpeed * dt * 1.2));
+    steerIn = (arrowRight ? 1 : 0) - (arrowLeft ? 1 : 0);
   } else if (mob) {
-    const touchOff = (I.tx - innerWidth / 2) / (innerWidth / 2);
-    latTarget = Math.max(-0.85, Math.min(0.85, mxBike.lat + touchOff * mxBike.turnSpeed * dt * 1.5));
+    steerIn = Math.max(-1, Math.min(1, (I.tx - innerWidth / 2) / (innerWidth * 0.35)));
   } else {
     const toBikeX = I.mx - mxBike.pos.x;
     const toBikeZ = I.mz - mxBike.pos.z;
-    latTarget = Math.max(-0.85, Math.min(0.85, (toBikeX * curNorm.x + toBikeZ * curNorm.z) * 0.18));
+    const cursorLat = Math.max(-0.9, Math.min(0.9, (toBikeX * curNorm.x + toBikeZ * curNorm.z) * 0.18));
+    steerIn = Math.max(-1, Math.min(1, (cursorLat - mxBike.lat) * 3.2));
   }
-  // Smooth, stable steering — no feedback oscillation
-  const prevLat = mxBike.lat;
-  mxBike.lat = lerp(mxBike.lat, latTarget, mxBike.turnSpeed * dt * 0.8);
-  mxBike.lat = Math.max(-0.85, Math.min(0.85, mxBike.lat));
-  // Drift factor tracks actual rate of lateral change (for lean/effects only)
-  mxBike.driftFactor = lerp(mxBike.driftFactor, (mxBike.lat - prevLat) / Math.max(dt, 0.001), 0.15);
 
-  // Berm assist
-  const bermForce = getBerm(mxBike.t);
-  if (bermForce !== 0) {
-    mxBike.lat = lerp(mxBike.lat, mxBike.lat + bermForce, 0.12);
-    mxBike.speed *= 1.008;
-    if (mxBike.speed > 6) achState.mxBermHits = (achState.mxBermHits || 0) + 1;
-  }
-  // Lean into turns — based on lateral position and speed
-  const speedLeanFactor = Math.min(mxBike.speed / mxBike.maxSpeed, 1);
-  const leanTarget = mxBike.lat * 0.6 * speedLeanFactor + mxBike.driftFactor * 0.008;
-  mxBike.lean = lerp(mxBike.lean, leanTarget, 0.12);
+  // -- signed track curvature at the bike (left turn > 0) --
+  const wrapT = (v: number) => ((v % 1) + 1) % 1;
+  const dTc = 0.004;
+  const tanBack = mxSpline.getTangentAt(wrapT(mxBike.t - dTc)).normalize();
+  const tanFwd = mxSpline.getTangentAt(wrapT(mxBike.t + dTc)).normalize();
+  const crossY = tanBack.z * tanFwd.x - tanBack.x * tanFwd.z;
+  const dotTan = tanBack.x * tanFwd.x + tanBack.z * tanFwd.z;
+  const kappa = Math.atan2(crossY, dotTan) / Math.max(2 * dTc * mxSplineLen, 0.01);
+  const washDir = Math.sign(kappa) || 0;   // outward = lat+ on left turns
 
-  // Terrain friction based on environment type
+  // -- terrain + tires --
   const trk = MX_TRACKS[mxTrackIdx];
   let terrainFriction = 1.0;
   if (trk.envType === 'ice') terrainFriction = 0.85;
   else if (trk.envType === 'jungle') terrainFriction = 0.93;
   else if (trk.envType === 'volcanic') terrainFriction = 0.95;
 
-  // Cornering speed loss (gentle — realistic MX bikes hold speed through turns)
-  const corneringLoss = 1 - Math.abs(mxBike.driftFactor) * 0.012 * getTireGrip();
+  const bermForce = getBerm(mxBike.t);
+  const onBerm = bermForce !== 0;
+  const inAir = mxBike.airborne;
 
-  // Speed (arrow up also accelerates, arrow down brakes hard)
+  // -- grip budget (world m/s² of lateral capability) --
+  let gripMax = 20 * terrainFriction * getTireGrip();
+  if (onBerm) gripMax *= 2.3;
+  const spinning = (mxAccel || arrowUp) && !inAir && mxBike.speed > 0.5 && mxBike.speed < 5.5 && mxTimer.running;
+  if (spinning) gripMax *= 0.75;
+
+  const cornerLoad = mxBike.speed * mxBike.speed * Math.abs(kappa);
+  const gripLeft = Math.max(0, gripMax - cornerLoad);
+
+  // -- lateral momentum steering (lat-units: world lateral / 2.4) --
+  const LAT_SCALE = TRACK_W * 0.8;
+  const steerAuthority = inAir ? 0.12 : Math.min(1, gripLeft / 8 + 0.25);
+  mxBike.latVel += steerIn * mxBike.turnSpeed * 1.9 * steerAuthority * dt;
+  // tires resist lateral sliding when planted; barely at all in the air
+  const latDamp = inAir ? 0.6 : 5.5 * (0.6 + 0.4 * terrainFriction);
+  mxBike.latVel -= mxBike.latVel * Math.min(1, latDamp * dt);
+
+  // -- washout: cornering demand beyond grip pushes the bike wide --
+  const overload = Math.max(0, cornerLoad - gripMax);
+  if (overload > 0 && !inAir) {
+    const wash = Math.min(overload / 14, 1.4);
+    mxBike.latVel += washDir * (overload / LAT_SCALE) * 0.55 * dt;
+    mxBike.speed *= 1 - 0.4 * wash * dt;               // scrubbing speed
+    mxBike.slide = Math.min(1, mxBike.slide + wash * dt * 4);
+    mxTimer.clean = false;
+  } else {
+    mxBike.slide = Math.max(0, mxBike.slide - dt * 3);
+  }
+
+  // wheelspin fishtail off the line
+  if (spinning) mxBike.latVel += Math.sin(t * 24) * 0.5 * dt;
+
+  // berm pull: the bank cradles the bike toward its pocket
+  if (onBerm && !inAir) {
+    mxBike.lat = lerp(mxBike.lat, mxBike.lat + bermForce, 0.10);
+    if (mxBike.speed > 6) achState.mxBermHits = (achState.mxBermHits || 0) + 1;
+  }
+
+  mxBike.lat += mxBike.latVel * dt;
+  if (mxBike.lat > 0.95) { mxBike.lat = 0.95; mxBike.latVel = Math.min(0, mxBike.latVel); }
+  if (mxBike.lat < -0.95) { mxBike.lat = -0.95; mxBike.latVel = Math.max(0, mxBike.latVel); }
+  mxBike.driftFactor = lerp(mxBike.driftFactor, mxBike.latVel * 2.2, 0.2);
+
+  // -- lean into the corner, weight the outside on washes --
+  const speedLeanFactor = Math.min(mxBike.speed / mxBike.maxSpeed, 1);
+  const corneringLean = -washDir * Math.min(1, cornerLoad / Math.max(gripMax, 1)) * 0.85 * speedLeanFactor;
+  const leanTarget = corneringLean + steerIn * 0.3 * speedLeanFactor + mxBike.latVel * 0.12;
+  mxBike.lean = lerp(mxBike.lean, Math.max(-1, Math.min(1, leanTarget)), 0.10);
+
+  // berm banking roll (visual): the bike rides the bowl, rolled into the bank
+  const bankTarget = onBerm ? -bermForce * 0.7 : 0;
+  mxBike.bank = lerp(mxBike.bank, bankTarget, 0.09);
+
+  // ═══ DRIVETRAIN — 3-speed box, rpm drives torque + engine audio ═══
   const braking = arrowDown && mxTimer.running && !mxBike.airborne;
+  const gearTops = [0.42, 0.76, 1.02];
+  let gear = 0;
+  const spdRatio = mxBike.speed / mxBike.maxSpeed;
+  while (gear < 2 && spdRatio > gearTops[gear]) gear++;
+  if (gear !== mxBike.gear) { mxShiftTimer = 0.14; mxBike.gear = gear; }
+  mxShiftTimer = Math.max(0, mxShiftTimer - dt);
+  const gearLo = gear === 0 ? 0 : gearTops[gear - 1];
+  const rpmRaw = (spdRatio - gearLo) / (gearTops[gear] - gearLo);
+  const rpmTarget = mxShiftTimer > 0 ? 0.35
+    : Math.max(0.12, Math.min(1, rpmRaw * ((mxAccel || arrowUp) ? 1 : 0.55) + (spinning ? 0.45 : 0)));
+  mxBike.rpm = lerp(mxBike.rpm, rpmTarget, 0.25);
+
   if (braking) {
-    // Active brake — strong, grip-dependent deceleration
     mxBike.speed = Math.max(0, mxBike.speed - mxBike.brake * terrainFriction * dt * 1.4);
   } else if ((mxAccel || arrowUp) && mxTimer.running) {
     const targetSpeed = mxBike.maxSpeed;
     const ratio = mxBike.speed / targetSpeed;
-    const launchBoost = mxBike.speed < 4 ? 3.5 : mxBike.speed < 8 ? 1.6 : 1;
-    // Slope load: climbing bleeds drive, descending adds a touch
+    const launchBoost = mxBike.speed < 4 ? 3.2 : mxBike.speed < 8 ? 1.6 : 1;
     const slopeLoad = 1 - Math.max(-0.5, Math.min(0.5, mxGroundSlope)) * 0.55;
-    const accelF = (1 - ratio * ratio) * mxBike.accel * dt * 0.22 * launchBoost * terrainFriction * slopeLoad;
+    // torque follows revs: soft at the bottom of each gear, pulls hard on top;
+    // clutch drops during shifts; wheelspin wastes drive off the line
+    const torque = (mxShiftTimer > 0 ? 0.35 : 0.7 + 0.5 * mxBike.rpm) * (spinning ? 0.7 : 1);
+    const accelF = (1 - ratio * ratio) * mxBike.accel * dt * 0.22 * launchBoost * terrainFriction * slopeLoad * torque;
     mxBike.speed = Math.min(mxBike.speed + accelF, targetSpeed);
-    mxBike.speed *= corneringLoss;
   } else if (mxTimer.running) {
-    // Coast — engine braking toward cruise speed
     const coastTarget = mxBike.maxSpeed * 0.25 * terrainFriction;
     mxBike.speed = lerp(mxBike.speed, coastTarget, 0.018);
-    mxBike.speed *= corneringLoss;
   } else {
     mxBike.speed = lerp(mxBike.speed, 0, mxBike.brake * dt * 0.06);
   }
+  // cornering scrub while leaned over (mild — washouts are the real cost)
+  mxBike.speed *= 1 - Math.abs(mxBike.lean) * 0.05 * dt;
 
   // Wheelie mechanics — front tire UP, back tire DOWN
   if (I.space && mxTimer.running && !mxBike.airborne && mxBike.speed > 3) {
@@ -396,11 +460,17 @@ function updateMX(t: number): void {
   // Off-track penalty
   if (Math.abs(mxBike.lat) > 0.9) { mxBike.speed *= 0.96; mxTimer.clean = false; }
 
-  // Move along spline
+  // Move along spline — compensated for the bike's offset line so world
+  // speed is true at the BIKE, not the centerline. Without this the bike is
+  // effectively tethered to the track centre: outside lines got dragged
+  // faster, inside lines held back. Now inside lines are genuinely shorter
+  // (real racing lines) and corner speed feels honest.
   const splineLen = mxSplineLen;
   if (splineLen > 0) {
     const prevT = mxBike.t;
-    mxBike.t += mxBike.speed * dt / splineLen;
+    const latWorld = mxBike.lat * TRACK_W * 0.8;
+    const arcFactor = Math.max(0.6, Math.min(1.5, 1 + kappa * latWorld));
+    mxBike.t += mxBike.speed * dt / (splineLen * arcFactor);
     if (mxBike.t >= 1 && mxTimer.running) {
       mxBike.t -= 1;
       if (mxTimer.cpsHit.size >= MX_CHECKPOINTS) {
@@ -533,6 +603,7 @@ function updateMX(t: number): void {
       mxBike.vy = terrainVy;
       const impactVel = relImpact;
       mxBike.jumpVel = 0;
+      mxBike.pitchVel += impactVel * 0.5;   // nose dips into the compression
       if (impactVel > 1.2) sndLanding();
       mxTimer.airTime = 0;
       // Suspension slams + camera kick scale with real impact
@@ -565,39 +636,48 @@ function updateMX(t: number): void {
     groundY + 0.35 + mxBike.suspBob,
     curPt.z + curNorm.z * mxBike.lat * TRACK_W * 0.8,
   );
-  // Yaw follows the spline tangent through a shortest-arc smoother — raw
-  // tangent direction has spikes at spline joins that snap the bike around
-  const yawTarget = Math.atan2(curTan.x, curTan.z);
+  // Yaw follows the bike's actual velocity direction (spline tangent plus
+  // the lateral drift component) through a shortest-arc smoother
+  const latWorldVel = mxBike.latVel * TRACK_W * 0.8;
+  const velX = curTan.x * mxBike.speed + curNorm.x * latWorldVel;
+  const velZ = curTan.z * mxBike.speed + curNorm.z * latWorldVel;
+  const yawTarget = mxBike.speed > 1.5
+    ? Math.atan2(velX, velZ)
+    : Math.atan2(curTan.x, curTan.z);
   let yawErr = yawTarget - mxBike.angle;
   while (yawErr > Math.PI) yawErr -= Math.PI * 2;
   while (yawErr < -Math.PI) yawErr += Math.PI * 2;
   mxBike.angle += yawErr * Math.min(1, dt * 10);
   bikeGroup.position.copy(mxBike.pos);
   bikeGroup.rotation.y = mxBike.angle;
-  bikeGroup.rotation.z = mxBike.lean * 0.7;
+  bikeGroup.rotation.z = mxBike.lean * 0.7 + mxBike.bank;
 
-  // ── Chassis pitch (negative = nose up) ──
+  // ── Chassis pitch: front/rear wheel terrain sampling + spring-damper ──
+  // The chassis is a sprung mass between two wheels: whoops chatter it,
+  // tabletop faces rotate it up the ramp, landings compress and rebound.
   let pitchTarget: number;
-  let pitchRate: number;
+  let stiff: number, damp: number;
   if (mxBike.wheelie) {
     pitchTarget = -0.62;
-    pitchRate = 0.25;
+    stiff = 60; damp = 10;
   } else if (mxBike.airborne) {
-    // Follow the flight arc: nose rises off the lip, drops toward landing.
+    // follow the flight arc; throttle lifts the nose, brake dips it
     pitchTarget = -Math.atan2(mxBike.jumpVel, Math.max(mxBike.speed, 4)) * 0.9;
-    // Air control: throttle pulls the nose up (panic rev), brake dips it
-    // down to match downslope landings.
     if (mxAccel || arrowUp) pitchTarget -= 0.22;
     if (arrowDown) pitchTarget += 0.3;
-    pitchRate = 0.09;
+    stiff = 16; damp = 6;
   } else {
-    // Grounded: match the terrain slope, plus throttle/brake weight shift
-    pitchTarget = -Math.atan(mxGroundSlope) * 0.9
+    // grounded: chassis spans front/rear wheel contact heights
+    const wbT = 0.6 / Math.max(mxSplineLen, 1);
+    const hF = getTrackHeight(mxBike.t + wbT);
+    const hR = getTrackHeight(mxBike.t - wbT);
+    pitchTarget = -Math.atan2(hF - hR, 1.2)
       + ((mxAccel || arrowUp) ? -0.05 : 0.015)
-      + (braking ? 0.09 : 0);
-    pitchRate = 0.22;
+      + (braking ? 0.11 : 0);
+    stiff = 110; damp = 12;
   }
-  mxBike.pitch = lerp(mxBike.pitch, pitchTarget, pitchRate);
+  mxBike.pitchVel += (pitchTarget - mxBike.pitch) * stiff * dt - mxBike.pitchVel * damp * dt;
+  mxBike.pitch += mxBike.pitchVel * dt;
   bikeGroup.rotation.x = mxBike.pitch;
 
   // ── Suspension travel (spring-damper on both ends) ──
@@ -605,7 +685,7 @@ function updateMX(t: number): void {
   const grounded = !mxBike.airborne;
   const fTarget = !grounded ? 0
     : mxBike.wheelie ? 0.05
-    : Math.min(1, 0.22 + (mxAccel ? 0 : 0.18 * speedRatio) + bump);
+    : Math.min(1, 0.22 + (mxAccel ? 0 : 0.18 * speedRatio) + bump + (arrowDown ? 0.42 : 0));
   const rTarget = !grounded ? 0
     : Math.min(1, 0.22 + (mxAccel ? 0.4 * speedRatio : 0) + (mxBike.wheelie ? 0.35 : 0) + bump);
   [fComp, fVel] = springStep(fComp, fVel, fTarget, dt);
@@ -640,12 +720,12 @@ function updateMX(t: number): void {
     }
   }
 
-  // Skid sound + tire smoke at high speeds with heavy cornering
-  if (!mxBike.airborne && mxBike.speed > 10 && Math.abs(mxBike.driftFactor) > 0.4 && isSoundOn() && Math.random() < 0.05) {
+  // Skid sound + tire smoke — driven by real front-wash (slide) and hard drift
+  if (!mxBike.airborne && (mxBike.slide > 0.25 || (mxBike.speed > 10 && Math.abs(mxBike.driftFactor) > 0.4)) && isSoundOn() && Math.random() < 0.05 + mxBike.slide * 0.2) {
     sndSkid();
   }
-  if (!mxBike.airborne && mxBike.speed > 8 && Math.abs(mxBike.driftFactor) > 0.3 && parts.length < MAXP) {
-    if (Math.random() < 0.5) {
+  if (!mxBike.airborne && (mxBike.slide > 0.2 || (mxBike.speed > 8 && Math.abs(mxBike.driftFactor) > 0.3)) && parts.length < MAXP) {
+    if (Math.random() < 0.4 + mxBike.slide * 0.6) {
       parts.push(new Pt(
         mxBike.pos.x - curTan.x * 0.3, 0.1, mxBike.pos.z - curTan.z * 0.3,
         (Math.random() - 0.5) * 0.1, Math.random() * 0.08, (Math.random() - 0.5) * 0.1,
@@ -661,7 +741,7 @@ function updateMX(t: number): void {
   updateRoostParticles(dt, mxBike.speed, bikeGrounded, mxBike.pos, curTan, trackH);
   updateAmbientParticles(dt, t, mxBike.pos);
 
-  if (isSoundOn()) updateEngine(mxBike.speed, mxBike.maxSpeed, mxAccel);
+  if (isSoundOn()) updateEngine(0.15 + mxBike.rpm * 0.85, 1, mxAccel || arrowUp);
 }
 
 // ── Initialize ──

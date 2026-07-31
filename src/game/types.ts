@@ -58,7 +58,13 @@ export interface BikeState {
   wheelieBalance: number; // -1 to 1, 0 = perfect balance
   wheelieTime: number;
   vy: number;             // vertical velocity while terrain-following (m/s)
-  pitch: number;          // smoothed chassis pitch (rad, negative = nose up)
+  pitch: number;          // chassis pitch (rad, negative = nose up)
+  pitchVel: number;       // chassis pitch spring velocity
+  latVel: number;         // lateral velocity across the track (momentum steering)
+  slide: number;          // 0..1 current front-wash amount (understeer slide)
+  gear: number;           // current gear 0..2
+  rpm: number;            // 0..1 within-gear rpm (drives audio + accel surge)
+  bank: number;           // smoothed berm banking roll (rad)
 }
 
 // ── Timer / Race State ──
