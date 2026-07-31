@@ -82,12 +82,13 @@ Post to the iframe/WebView `contentWindow`, always `{ target: 'socia-mx', ... }`
 
 ## Mobile notes
 
-- Landscape is the intended racing orientation. In portrait on touch devices
-  the game shows a non-blocking "rotate your device" hint for 3s when racing
-  starts; it never blocks play.
-- Touch controls (hold-throttle, slide-steer, wheelie button) are built in.
-- In a Capacitor/WKWebView host, allow rotation on the arcade screen if the
-  rest of the app is portrait-locked.
+- The game REQUIRES landscape on touch devices — a blocking "rotate your
+  phone" gate covers the game while portrait. In the Capacitor host, lock the
+  arcade screen to landscape natively (e.g. @capacitor/screen-orientation
+  `lock({ orientation: 'landscape' })` on mount, unlock on leave) so the OS
+  rotates for the user instead of asking them.
+- Touch controls are built in: floating joystick on the left half (x = steer,
+  y = in-air pitch), GAS / BRAKE / WHEELIE buttons in a right-thumb cluster.
 
 ## Local testing
 

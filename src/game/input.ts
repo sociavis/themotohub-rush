@@ -18,38 +18,53 @@ export let arrowUp = false;
 export let arrowDown = false;
 
 // ── Touch racing controls (mobile): left drag-steer, right GAS/BRAKE ──
-export const TC = { steer: 0, throttle: false, brake: false, active: false };
+export const TC = { steer: 0, airY: 0, throttle: false, brake: false, active: false };
 
 function setupTouchRacingControls(): void {
   const steerZone = document.getElementById('tcSteer');
-  const nub = document.getElementById('tcNub');
+  const nub = document.getElementById('tcJoy');
   const gas = document.getElementById('tcThrottle');
   const brake = document.getElementById('tcBrake');
   if (!steerZone || !nub || !gas || !brake) return;
 
+  // Floating joystick: rests bottom-left as visible UI, jumps to the thumb
+  // on touch. X steers; Y is in-air pitch control (push = nose down).
   let steerId: number | null = null;
-  let originX = 0;
-  const STEER_RANGE = 60;   // px of thumb travel for full lock
+  let baseX = 0, baseY = 0;
+  const JOY_R = 46;         // px of knob travel for full deflection
+  const restJoy = () => {
+    nub.style.left = '96px';
+    nub.style.bottom = '-18px';
+    nub.style.top = 'auto';
+    nub.style.setProperty('--jx', '0px');
+    nub.style.setProperty('--jy', '0px');
+  };
+  const knob = nub.querySelector('.tc-knob') as HTMLElement | null;
+  void knob;
 
   steerZone.addEventListener('touchstart', (e) => {
     e.preventDefault();
     if (steerId !== null) return;
     const t = e.changedTouches[0];
     steerId = t.identifier;
-    originX = t.clientX;
+    baseX = t.clientX;
+    baseY = t.clientY;
     TC.active = true;
-    nub.style.display = 'block';
-    nub.style.left = t.clientX + 'px';
-    nub.style.top = t.clientY + 'px';
-    nub.style.setProperty('--nx', '0px');
+    nub.style.left = baseX + 'px';
+    nub.style.top = baseY + 'px';
+    nub.style.bottom = 'auto';
   }, { passive: false });
   steerZone.addEventListener('touchmove', (e) => {
     e.preventDefault();
     for (const t of Array.from(e.changedTouches)) {
       if (t.identifier !== steerId) continue;
-      const dx = t.clientX - originX;
-      TC.steer = Math.max(-1, Math.min(1, dx / STEER_RANGE));
-      nub.style.setProperty('--nx', (TC.steer * 20) + 'px');
+      let dx = t.clientX - baseX, dy = t.clientY - baseY;
+      const len = Math.hypot(dx, dy);
+      if (len > JOY_R) { dx *= JOY_R / len; dy *= JOY_R / len; }
+      TC.steer = Math.max(-1, Math.min(1, dx / JOY_R));
+      TC.airY = Math.max(-1, Math.min(1, dy / JOY_R));
+      nub.style.setProperty('--jx', dx + 'px');
+      nub.style.setProperty('--jy', dy + 'px');
     }
   }, { passive: false });
   const steerEnd = (e: TouchEvent) => {
@@ -57,12 +72,14 @@ function setupTouchRacingControls(): void {
       if (t.identifier !== steerId) continue;
       steerId = null;
       TC.steer = 0;
+      TC.airY = 0;
       TC.active = false;
-      nub.style.display = 'none';
+      restJoy();
     }
   };
   steerZone.addEventListener('touchend', steerEnd);
   steerZone.addEventListener('touchcancel', steerEnd);
+  restJoy();
 
   const bindBtn = (el: HTMLElement, key: 'throttle' | 'brake') => {
     el.addEventListener('touchstart', (e) => {

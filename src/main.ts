@@ -47,17 +47,13 @@ const isTouchDevice = matchMedia('(pointer: coarse)').matches;
 let rotateHintTimer = 0;
 let rotateHintShown = false;
 function updateRotateGuard(): void {
-  const shouldShow = isTouchDevice && innerHeight > innerWidth && currentScreen === 'racing';
-  if (shouldShow && !rotateHintShown) {
-    rotateHintShown = true;
-    rotateOverlay.classList.add('show');
-    clearTimeout(rotateHintTimer);
-    rotateHintTimer = window.setTimeout(() => rotateOverlay.classList.remove('show'), 3000);
-  } else if (!shouldShow && rotateHintShown) {
-    rotateHintShown = false;
-    clearTimeout(rotateHintTimer);
-    rotateOverlay.classList.remove('show');
+  // Touch devices play landscape, full stop — blocking gate while portrait
+  const shouldShow = isTouchDevice && innerHeight > innerWidth;
+  if (shouldShow !== rotateHintShown) {
+    rotateHintShown = shouldShow;
+    rotateOverlay.classList.toggle('show', shouldShow);
   }
+  void rotateHintTimer;
 }
 window.addEventListener('resize', updateRotateGuard);
 window.addEventListener('orientationchange', updateRotateGuard);
@@ -674,6 +670,7 @@ function updateMX(t: number): void {
     pitchTarget = -Math.atan2(mxBike.jumpVel, Math.max(mxBike.speed, 4)) * 0.9;
     if (accelOn) pitchTarget -= 0.22;
     if (brakeOn) pitchTarget += 0.3;
+    if (mob) pitchTarget += TC.airY * 0.38;   // joystick: push = nose down, pull = nose up
     stiff = 16; damp = 6;
   } else {
     // grounded: chassis spans front/rear wheel contact heights
