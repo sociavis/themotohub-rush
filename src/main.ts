@@ -272,6 +272,10 @@ function cycleHint(): void {
   }, 800);
 }
 
+// Frame profiler (?prof=1) — logs CPU cost per section every 5 frames
+const PROF = new URLSearchParams(location.search).has('prof');
+let __profN = 0, __profMX = 0, __profHUD = 0, __profRender = 0, __profFrame = 0;
+
 // ── MX Update ──
 const GRAV = 16;              // gravity while airborne (m/s²) — snappy MX arcs
 let mxGroundSlope = 0;        // dh/ds at the bike (positive = climbing)
@@ -748,8 +752,11 @@ function startGame(): void {
       camera.updateProjectionMatrix();
     }
 
+    const __t1 = performance.now();
     updateMX(t);
+    const __t2 = performance.now();
     updateHUD(mxBike, mxTimer, mxTrackIdx, mxAccel);
+    const __t3 = performance.now();
     tickFPS(t);
     achState.elapsed = t;
     if (I.vel > achState.maxVel) achState.maxVel = I.vel;
@@ -757,7 +764,15 @@ function startGame(): void {
     checkAch();
     checkAchievementFunds();
 
+    const __t4 = performance.now();
     R.render(scene, camera);
+    const __t5 = performance.now();
+    __profN++;
+    __profMX += __t2 - __t1; __profHUD += __t3 - __t2; __profRender += __t5 - __t4; __profFrame += __t5 - __t1;
+    if (PROF && __profN >= 5) {
+      console.log(`[prof] avg over ${__profN}: frame ${(__profFrame/__profN).toFixed(1)}ms | updateMX ${(__profMX/__profN).toFixed(1)}ms | hud ${(__profHUD/__profN).toFixed(1)}ms | render ${(__profRender/__profN).toFixed(1)}ms | drawcalls ${R.info.render.calls} tris ${(R.info.render.triangles/1000).toFixed(0)}k`);
+      __profN = 0; __profMX = 0; __profHUD = 0; __profRender = 0; __profFrame = 0;
+    }
   }
   animate();
 }
