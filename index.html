@@ -487,6 +487,14 @@ body.mob-racing .touch-controls { display: block; }
   .fp-header { margin-bottom: 10px; }
   .shop-bike-preview { height: 150px; }
 }
+
+.number-setup{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(12,10,9,0.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);opacity:0;transition:opacity 0.3s ease}
+.number-setup.visible{opacity:1}
+.ns-card{width:min(320px,86vw);padding:24px 22px;border:1px solid;border-radius:4px;background:rgba(22,18,16,0.95);text-align:center}
+.ns-title{font-family:'Bring Race','Archivo Black',sans-serif;font-size:20px;letter-spacing:0.14em;text-transform:uppercase}
+.ns-sub{margin-top:6px;font-family:'Chivo Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.4)}
+.ns-input{width:130px;margin:18px auto 0;display:block;background:rgba(0,0,0,0.35);border:1px solid;border-radius:3px;font:700 30px 'Chivo Mono',monospace;text-align:center;padding:8px 6px;letter-spacing:0.08em}
+.ns-go{margin-top:18px;width:100%;padding:11px;background:transparent;border:1px solid;border-radius:3px;font-family:'Chivo Mono',monospace;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer}
 </style>
 <link rel="icon" type="image/svg+xml" href="./brand/tmh-appicon.svg">
 <link rel="apple-touch-icon" href="./brand/tmh-appicon.svg">

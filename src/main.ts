@@ -35,6 +35,7 @@ import { showFullShop, showFullProfile, showFullAchievements, hideFullScreen } f
 import { IS_EMBED, postToHost, initHostBridge, installBackButton, lockLandscapeInApp } from './game/host-bridge';
 import { storeGet, storeSet, storeRemove } from './game/safe-storage';
 import { url as gameUrl } from './game/base-url';
+import { showNumberSetup } from './ui/number-setup';
 export { IS_EMBED };
 if (IS_EMBED) document.body.classList.add('embed');
 initHostBridge();
@@ -812,6 +813,25 @@ function startGame(): void {
 
   postToHost({ type: 'started' });
 
+  // Number plates, now that auth has resolved: the host profile's race number
+  // is the source of truth for signed-in riders (it's their real TheMotoHub
+  // identity). A garage override only applies to guests, or riders whose
+  // profile carries no number — and if we have nothing at all, ask once.
+  const profileNum = getUser()?.racerNumber || 0;
+  const savedNum = storeGet('mx_rider_num');
+  if (profileNum > 0) {
+    setRiderNumber(profileNum);
+    storeSet('mx_rider_num', String(profileNum));
+  } else if (savedNum !== null) {
+    setRiderNumber(parseInt(savedNum));
+  } else {
+    showNumberSetup((n) => {
+      setRiderNumber(n);
+      storeSet('mx_rider_num', String(n));
+      goToMainMenu();
+    });
+  }
+
   // Build the first venue as a live backdrop for the menu orbit camera
   setTrackIdx(0);
   buildTrack();
@@ -909,9 +929,7 @@ function init(): void {
   loadAchState();
   initShop();
   // Number plates: garage override > profile racer number > default
-  const savedNum = storeGet('mx_rider_num');
-  const profileNum = getUser()?.racerNumber;
-  setRiderNumber(savedNum !== null ? parseInt(savedNum) : (profileNum || 7));
+  setRiderNumber(7);   // provisional; resolved against the profile once auth completes
 
   initLeaderboardUI();
   initProfileUI();

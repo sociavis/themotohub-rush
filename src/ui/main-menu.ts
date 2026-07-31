@@ -2,6 +2,7 @@ import { T, rgba } from '../game/themes';
 import { isLoggedIn, getUser } from '../game/auth';
 import { upgrades } from '../game/shop';
 import { url as gameUrl } from '../game/base-url';
+import { getRiderNumber } from '../game/bike-glb';
 
 const COIN = '◉';
 
@@ -32,7 +33,13 @@ function renderMenu(): void {
   const p = rgba(t.primary, 1);
   const s = rgba(t.secondary, 0.7);
 
-  const greeting = loggedIn && user ? `${user.username} #${user.racerNumber}` : 'GUEST RIDER';
+  // Prefer the host profile's display name + real race number
+  const riderName = user?.displayName || user?.username || '';
+  const riderNum = getRiderNumber();
+  const greeting = loggedIn && user ? `${riderName} #${riderNum}` : 'GUEST RIDER';
+  const avatar = user?.avatarUrl
+    ? `<img src="${user.avatarUrl}" alt="" style="width:22px;height:22px;border-radius:50%;object-fit:cover;border:1px solid ${rgba(t.primary, 0.4)};margin-right:8px;vertical-align:middle">`
+    : '';
 
   const logoSvg = `<img src="${gameUrl('brand/tmh-logo.svg')}" alt="TheMotoHub" style="width:clamp(130px,26vw,210px);height:auto;display:block;margin:0 auto 10px;filter:drop-shadow(0 4px 18px rgba(0,0,0,0.5))">`;
 
@@ -43,7 +50,7 @@ function renderMenu(): void {
         <div class="mm-subtitle" style="color:${p};opacity:0.95;font-family:'Bring Race','Archivo Black',sans-serif;letter-spacing:0.45em;text-indent:0.45em;font-size:clamp(20px,4vw,30px)">RUSH</div>
       </div>
       <div class="mm-rider-info">
-        <div class="mm-rider-row"><span class="mm-label" style="color:${rgba(t.primary, 0.35)}">RIDER</span> <span style="color:${s}">${greeting}</span></div>
+        <div class="mm-rider-row"><span class="mm-label" style="color:${rgba(t.primary, 0.35)}">RIDER</span> <span style="color:${s};display:inline-flex;align-items:center">${avatar}${greeting}</span></div>
         <div class="mm-rider-row"><span class="mm-label" style="color:${rgba(t.primary, 0.35)}">FUNDS</span> <span style="color:${rgba(t.primary, 0.6)}">${COIN} ${upgrades.funds}</span></div>
       </div>
       <div class="mm-buttons">
