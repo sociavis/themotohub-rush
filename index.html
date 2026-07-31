@@ -402,10 +402,17 @@ body.mob-racing:not(.mob-hud-open) .ach-tray,
 body.mob-racing:not(.mob-hud-open) .wm-logo,
 body.mob-racing:not(.mob-hud-open) .bottom-actions,
 body.mob-racing:not(.mob-hud-open) .bottom-bar,
-body.mob-racing:not(.mob-hud-open) .ach-toast,
 body.mob-racing:not(.mob-hud-open) .hud-panel {
   display: none !important;
 }
+/* Unlock toasts stay: earning an achievement with zero feedback is worse
+   than a small banner. Kept compact and out of the riding line. */
+body.mob-racing:not(.mob-hud-open) .ach-toast {
+  top: 8px; left: auto; right: 60px; transform: none;
+  font-size: 8px; padding: 4px 12px; gap: 8px;
+}
+body.mob-racing:not(.mob-hud-open) .ach-toast .toast-icon { font-size: 13px; }
+body.mob-racing:not(.mob-hud-open) .ach-toast .toast-desc { display: none; }
 .tc-menu {
   right: 12px; top: 12px; width: 44px; height: 40px; font-size: 16px;
   letter-spacing: 0; border-radius: 10px;
