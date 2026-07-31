@@ -99,7 +99,7 @@ let frames = 0;
 // ── rider calibration ──
 if (rider) {
   // defaults read from the LIVE mount so the first slider touch never jumps
-  const RC = { height: 1.1, mountY: rider.root.position.y, mountZ: rider.root.position.z, footUp: RIDER_TUNE.footUp, footOut: RIDER_TUNE.footOut, handUp: RIDER_TUNE.handUp, handOut: RIDER_TUNE.handOut, legLen: 1, armLen: 1, footSize: 1 };
+  const RC = { height: 1.1, mountY: rider.root.position.y, mountZ: rider.root.position.z, footUp: RIDER_TUNE.footUp, footOut: RIDER_TUNE.footOut, handUp: RIDER_TUNE.handUp, handOut: RIDER_TUNE.handOut, legLen: 1.3, armLen: 0.95, footSize: 0.91 };
   const rdiv = document.createElement('div');
   rdiv.className = 'plate';
   rdiv.innerHTML = `<h3>RIDER FIT</h3>` + [

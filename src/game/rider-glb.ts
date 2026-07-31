@@ -288,7 +288,10 @@ function buildRig(scene: THREE.Group): RiderRig | null {
 
   // Body proportions: bone scales cascade down the chain, so children get
   // inverse-compensated (legs carry the feet, arms carry the hands).
-  const shape = { legLen: 0.92, armLen: 0.95, footSize: 0.91 };
+  // legLen > 1 on purpose: the rider is scaled shorter than the bike's real
+  // proportions, so stock-length legs reach the pegs nearly straight (they
+  // read as dangling). Longer legs put a real bend in the knee at the shroud.
+  const shape = { legLen: 1.3, armLen: 0.95, footSize: 0.91 };
   const setBodyShape = (p: { legLen?: number; armLen?: number; footSize?: number }): void => {
     Object.assign(shape, p);
     bones.lUpLeg.scale.setScalar(shape.legLen);

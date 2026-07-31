@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { lerp, dst, T } from './game/themes';
 import { R, scene, camera, cam } from './game/renderer';
 import { I, mob, TC, setupInputListeners, updateMouse3D, getCursorRing, arrowLeft, arrowRight, arrowUp, arrowDown } from './game/input';
-import { isSoundOn, sndClick, sndShockwave, sndSectionChange, sndAchievement, sndCheckpoint, sndLanding, sndJump, sndWheelie, sndWheelieEnd, sndSkid, startEngine, updateEngine, stopEngine } from './game/audio';
+import { initAudio, isSoundOn, sndClick, sndShockwave, sndSectionChange, sndAchievement, sndCheckpoint, sndLanding, sndJump, sndWheelie, sndWheelieEnd, sndSkid, startEngine, updateEngine, stopEngine } from './game/audio';
 import { parts, Pt, MAXP, syncParticles, shocks, mkShock } from './game/particles';
 import { mxBike, bikeGroup, resetBike, updateSuspension, spinWheels, initHeroBike, updateRiderPose } from './game/bike';
 import { setRiderNumber } from './game/bike-glb';
@@ -246,6 +246,7 @@ function startRaceCountdown(): void {
 }
 
 function sectionClick(): void {
+  if (isSoundOn()) initAudio();   // first tap brings the audio context up
   achState.clicksPerSec[0]++;
   if (currentScreen !== 'racing') return;
   sndClick();
@@ -928,7 +929,6 @@ function init(): void {
   initStatsListeners(mxTimer);
   loadAchState();
   initShop();
-  // Number plates: garage override > profile racer number > default
   setRiderNumber(7);   // provisional; resolved against the profile once auth completes
 
   initLeaderboardUI();

@@ -1,7 +1,7 @@
 import { lerp } from './themes';
 
 let audioCtx: AudioContext | null = null;
-let soundOn = false;
+let soundOn = true;   // sound ships ON; muting is remembered (see sound-toggle)
 let sfxGain: GainNode | null = null;
 
 // Engine sound state
@@ -26,6 +26,7 @@ export function initAudio(): void {
 }
 
 export function playTone(f: number, dur: number, vol = 0.06, type: OscillatorType = 'square'): void {
+  if (soundOn && !audioCtx) initAudio();
   if (!audioCtx) return;
   const dest = sfxGain || audioCtx.destination;
   const o = audioCtx.createOscillator();
@@ -49,7 +50,9 @@ export function playNoise(dur: number, vol: number, filterFreq: number, filterQ?
 }
 
 export function startEngine(): void {
-  if (engineRunning || !audioCtx) return;
+  if (engineRunning) return;
+  if (!audioCtx) initAudio();
+  if (!audioCtx) return;
   engineRunning = true;
   const o1 = audioCtx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 60;
   const o2 = audioCtx.createOscillator(); o2.type = 'sawtooth'; o2.frequency.value = 62;
