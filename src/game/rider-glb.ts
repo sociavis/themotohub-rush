@@ -29,10 +29,14 @@ export interface RiderRig {
   attach: (mounts: MountPoints) => void;
   update: (pose: RiderPose, dt: number) => void;
   setJerseyColor: (c: THREE.Color) => void;
+  setHeight: (h: number) => void;
 }
 
 // Rider height in game units (bike wheelbase 1.2 ≈ 1.48 m → 1.6 m rider ≈ 1.3)
 const RIDER_HEIGHT = 1.06;
+
+// Live-tunable fit offsets (rider calibration in debug-bike.html)
+export const RIDER_TUNE = { footUp: 0.055, footOut: 0, handUp: 0.035 };
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -167,10 +171,13 @@ function buildRig(scene: THREE.Group): RiderRig | null {
   for (const b of torsoBones) rest.set(b, b.quaternion.clone());
 
   // limbs measured in normalized bind pose
-  const armL = makeLimb(bones.lArm, bones.lForeArm, bones.lHand);
-  const armR = makeLimb(bones.rArm, bones.rForeArm, bones.rHand);
-  const legL = makeLimb(bones.lUpLeg, bones.lLeg, bones.lFoot);
-  const legR = makeLimb(bones.rUpLeg, bones.rLeg, bones.rFoot);
+  const restAll = new Map<THREE.Bone, THREE.Quaternion>();
+  for (const b of Object.values(bones)) restAll.set(b as THREE.Bone, (b as THREE.Bone).quaternion.clone());
+  let curHeight = RIDER_HEIGHT;
+  let armL = makeLimb(bones.lArm, bones.lForeArm, bones.lHand);
+  let armR = makeLimb(bones.rArm, bones.rForeArm, bones.rHand);
+  let legL = makeLimb(bones.lUpLeg, bones.lLeg, bones.lFoot);
+  let legR = makeLimb(bones.rUpLeg, bones.rLeg, bones.rFoot);
 
   let mounts: MountPoints | null = null;
 
@@ -198,6 +205,7 @@ function buildRig(scene: THREE.Group): RiderRig | null {
   }
 
   function update(pose: RiderPose, dt: number): void {
+    lastPose = pose;
     const sm = Math.min(1, dt * 9);
     cur.crouch = lerp(cur.crouch, pose.crouch, sm);
     cur.back = lerp(cur.back, pose.back, sm);
@@ -218,6 +226,8 @@ function buildRig(scene: THREE.Group): RiderRig | null {
     // Feet on pegs (leg-out swings the boot forward and out, MX style)
     const footLT = mounts.footL!.getWorldPosition(new THREE.Vector3());
     const footRT = mounts.footR!.getWorldPosition(new THREE.Vector3());
+    footLT.add(side.clone().multiplyScalar(RIDER_TUNE.footOut));
+    footRT.add(side.clone().multiplyScalar(-RIDER_TUNE.footOut));
     if (cur.legOutL > 0.02) footLT.add(fwd.clone().multiplyScalar(cur.legOutL * 0.55)).add(side.clone().multiplyScalar(cur.legOutL * 0.25)).add(new THREE.Vector3(0, cur.legOutL * 0.1, 0));
     if (cur.legOutR > 0.02) footRT.add(fwd.clone().multiplyScalar(cur.legOutR * 0.55)).add(side.clone().multiplyScalar(-cur.legOutR * 0.25)).add(new THREE.Vector3(0, cur.legOutR * 0.1, 0));
     // knees bend forward, slightly out — pole kept tight so shins hug the bike
@@ -244,9 +254,24 @@ function buildRig(scene: THREE.Group): RiderRig | null {
     }
   }
 
+  let lastPose: RiderPose = { crouch: 0, back: 0, legOut: 0, tuck: 0, lean: 0 };
   const attach = (m: MountPoints): void => {
     mounts = m;
-    update({ crouch: 0, back: 0, legOut: 0, tuck: 0, lean: 0 }, 1);
+    update(lastPose, 1);
+  };
+
+  // Live rescale (calibration): restore bind pose, rescale, re-measure the
+  // IK limbs at the new size, re-solve the current pose.
+  const setHeight = (h: number): void => {
+    for (const [b, q] of restAll) b.quaternion.copy(q);
+    scene.scale.multiplyScalar(h / curHeight);
+    curHeight = h;
+    scene.updateMatrixWorld(true);
+    armL = makeLimb(bones.lArm, bones.lForeArm, bones.lHand);
+    armR = makeLimb(bones.rArm, bones.rForeArm, bones.rHand);
+    legL = makeLimb(bones.lUpLeg, bones.lLeg, bones.lFoot);
+    legR = makeLimb(bones.rUpLeg, bones.rLeg, bones.rFoot);
+    update(lastPose, 1);
   };
 
   const setJerseyColor = (c: THREE.Color): void => {
@@ -264,7 +289,7 @@ function buildRig(scene: THREE.Group): RiderRig | null {
     });
   };
 
-  return { root, attach, update, setJerseyColor };
+  return { root, attach, update, setJerseyColor, setHeight };
 }
 
 export function loadGlbRider(): Promise<RiderRig | null> {

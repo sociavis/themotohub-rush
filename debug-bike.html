@@ -34,7 +34,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { loadGlbBike, setRiderNumber, tunePlate, getPlateSpots } from '/src/game/bike-glb.ts';
-import { loadGlbRider } from '/src/game/rider-glb.ts';
+import { loadGlbRider, RIDER_TUNE } from '/src/game/rider-glb.ts';
 
 const rig = await loadGlbBike();
 if (!rig) { document.body.innerHTML = '<h1 style="color:red">GLB failed</h1>'; throw 0; }
@@ -95,6 +95,45 @@ let frames = 0;
   if (frames % 300 === 0) console.log('[loop] alive, frame', frames);
   for (const { r, cam } of renderers) r.render(scene, cam);
 })();
+
+// ── rider calibration ──
+if (rider) {
+  const RC = { height: 1.06, mountY: 0.13, mountZ: -0.05, footUp: RIDER_TUNE.footUp, footOut: RIDER_TUNE.footOut, handUp: RIDER_TUNE.handUp };
+  const rdiv = document.createElement('div');
+  rdiv.className = 'plate';
+  rdiv.innerHTML = `<h3>RIDER FIT</h3>` + [
+    ['height', 0.85, 1.35, 0.005],
+    ['mountY', -0.05, 0.30, 0.005],
+    ['mountZ', -0.25, 0.15, 0.005],
+    ['footUp', -0.02, 0.16, 0.005],
+    ['footOut', -0.08, 0.14, 0.005],
+    ['handUp', -0.06, 0.12, 0.005],
+  ].map(([k, mn, mx, st]) =>
+    `<label>${k} <span class="val" id="rv_${k}">${RC[k].toFixed(3)}</span>
+      <input type="range" id="rs_${k}" min="${mn}" max="${mx}" step="${st}" value="${RC[k]}"></label>`
+  ).join('');
+  document.getElementById('panel').insertBefore(rdiv, document.getElementById('controls'));
+  const riderOut = document.createElement('textarea');
+  riderOut.id = 'riderOut'; riderOut.readOnly = true;
+  riderOut.style.cssText = 'width:100%;height:74px;background:#141210;color:#8f8;border:1px solid #3a342c;font-size:9px;margin-top:6px';
+  rdiv.appendChild(riderOut);
+  const updRiderOut = () => {
+    riderOut.value = JSON.stringify({ height: +RC.height.toFixed(3), mountY: +RC.mountY.toFixed(3), mountZ: +RC.mountZ.toFixed(3), footUp: +RC.footUp.toFixed(3), footOut: +RC.footOut.toFixed(3), handUp: +RC.handUp.toFixed(3) });
+  };
+  updRiderOut();
+  const applyRider = (k, v) => {
+    RC[k] = v;
+    if (k === 'height') rider.setHeight(v);
+    else if (k === 'mountY' || k === 'mountZ') rider.root.position.set(0, RC.mountY, RC.mountZ);
+    else { RIDER_TUNE[k] = v; }
+    rider.update({ crouch: 0, back: 0, legOut: 0, tuck: 0, lean: 0 }, 1);
+    document.getElementById('rv_' + k).textContent = v.toFixed(3);
+    updRiderOut();
+  };
+  for (const k of Object.keys(RC)) {
+    document.getElementById('rs_' + k).addEventListener('input', (e) => applyRider(k, parseFloat(e.target.value)));
+  }
+}
 
 // ── controls ──
 const NAMES = ['LEFT SIDE PLATE', 'RIGHT SIDE PLATE', 'FRONT PLATE'];
