@@ -206,16 +206,6 @@ export function setupInputListeners(
 
   if (mob) setupTouchRacingControls();
 
-  // Mobile wheelie button
-  const wheelieBtn = document.getElementById('wheelieBtn');
-  if (wheelieBtn) {
-    wheelieBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault(); I.space = true; wheelieBtn.classList.add('active');
-    }, { passive: false });
-    wheelieBtn.addEventListener('touchend', () => {
-      I.space = false; wheelieBtn.classList.remove('active');
-    });
-  }
 }
 
 import * as THREE from 'three';

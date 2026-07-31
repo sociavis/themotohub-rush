@@ -35,6 +35,8 @@ export interface TrackDef {
   envType: 'desert' | 'ice' | 'neon' | 'volcanic' | 'jungle' | 'stadium';
   pts: [number, number][];
   obs: TrackObstacle[];
+  // baseline elevation: [amplitude, cycles (integer, keeps the loop closed), phase]
+  hills?: [number, number, number][];
 }
 
 // ── Bike State ──

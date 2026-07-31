@@ -28,7 +28,6 @@
   .cursor-ring.active{width:24px;height:24px;border-color:#fff !important;opacity:0.8}
   .wheelie-btn{display:none;position:absolute;z-index:8;bottom:24px;left:24px;padding:12px 20px;font-family:'Chivo Mono',monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;border:1px solid rgba(255,255,255,0.2);border-radius:3px;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);color:rgba(255,255,255,0.7);pointer-events:auto;cursor:none;user-select:none;-webkit-user-select:none;touch-action:none}
   .wheelie-btn.active{border-color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.1);color:#fff}
-  @media(pointer:coarse){.wheelie-btn{display:block}}
   .bottom-bar{position:absolute;z-index:7;pointer-events:none;bottom:70px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:10px}
   .hint-line{font-family:'Chivo Mono',monospace;font-size:clamp(8px,1.8vw,10px);letter-spacing:0.2em;text-transform:uppercase;white-space:nowrap;padding:5px 16px;border-radius:2px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.35);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);opacity:0;transition:opacity 0.8s ease}
   .hint-line.visible{opacity:0.85}
@@ -450,7 +449,6 @@ body.mob-racing .touch-controls { display: block; }
   <div class="wm-logo" id="wmLogo"><img src="/brand/tmh-logo.svg" alt="TheMotoHub RUSH" style="width:100%;height:auto;opacity:0.85"></div>
   <div class="ach-tray" id="achTray"></div>
   <div class="ach-tooltip" id="achTooltip"><div class="att-icon" id="attIcon"></div><div class="att-name" id="attName"></div><div class="att-line" id="attLine"></div><div class="att-desc" id="attDesc"></div><div class="att-source" id="attSource" style="font-size:8px;letter-spacing:0.12em;opacity:0.35;margin-top:6px"></div></div>
-  <div class="wheelie-btn" id="wheelieBtn">WHEELIE</div>
   <div class="bottom-bar"><div class="hint-line" id="hintLine">[ Click anywhere to deploy pulse ]</div></div>
   <div class="bottom-actions" id="bottomActions">
     <div class="globe-btn" id="globeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/></svg></div>

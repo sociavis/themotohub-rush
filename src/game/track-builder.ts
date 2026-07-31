@@ -171,9 +171,12 @@ function obstacleProfile(ob: import('./types').TrackObstacle, p: number): number
 
 function buildTrackLUT(): void {
   const trk = MX_TRACKS[mxTrackIdx];
+  const hills = trk.hills || [];
   for (let i = 0; i <= TRACK_LUT_RES; i++) {
     const tP = i / TRACK_LUT_RES;
+    // rolling baseline elevation (integer cycles → seamless loop)
     let h = 0, b = 0;
+    for (const [amp, cyc, ph] of hills) h += amp * Math.sin(tP * Math.PI * 2 * cyc + ph);
     for (const ob of trk.obs) {
       if (ob.type === 'berm') {
         const w = ob.len || 0.06;
@@ -185,13 +188,17 @@ function buildTrackLUT(): void {
         const spread = ob.len || 0.12;
         if (tP >= ob.at && tP <= ob.at + spread) {
           const p = (tP - ob.at) / spread;
-          h = Math.max(h, obstacleProfile(ob, p));
+          h += obstacleProfile(ob, p);
         }
       }
     }
     _heightLUT[i] = h;
     _bermLUT[i] = b;
   }
+  // ground the lowest point of the lap at 0
+  let minH = Infinity;
+  for (let i = 0; i <= TRACK_LUT_RES; i++) minH = Math.min(minH, _heightLUT[i]);
+  if (minH !== 0) for (let i = 0; i <= TRACK_LUT_RES; i++) _heightLUT[i] -= minH;
 }
 
 export function getTrackHeight(tParam: number): number {
@@ -343,20 +350,23 @@ export function buildTrack(): void {
   surfMesh.receiveShadow = true;
   s4.add(surfMesh); mxTrackMeshes.push(surfMesh);
 
-  // ── Shoulders / aprons blending into the terrain ──
-  const APRON_W = 2.4;
+  // ── Shoulders / aprons: two bands so elevated track grounds naturally ──
   for (const side of [1, -1]) {
     const av: number[] = [], ai: number[] = [], auv: number[] = [];
     for (let i = 0; i <= RES; i++) {
       const edge = side > 0 ? leftPts[i] : rightPts[i];
       const n = normals[i];
+      const midY = Math.max(edge.y * 0.4, 0.02);
       av.push(edge.x, edge.y + 0.015, edge.z);
-      av.push(edge.x + n.x * APRON_W * side, Math.max(edge.y * 0.35, 0), edge.z + n.z * APRON_W * side);
-      auv.push(0, (i / RES) * vRepeat, 1, (i / RES) * vRepeat);
+      av.push(edge.x + n.x * 2.6 * side, midY, edge.z + n.z * 2.6 * side);
+      av.push(edge.x + n.x * (2.6 + 2 + edge.y * 1.6) * side, 0.02, edge.z + n.z * (2.6 + 2 + edge.y * 1.6) * side);
+      auv.push(0, (i / RES) * vRepeat, 0.5, (i / RES) * vRepeat, 1, (i / RES) * vRepeat);
     }
     for (let i = 0; i < RES; i++) {
-      const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
-      ai.push(a, b, c, b, d, c);
+      for (let c2 = 0; c2 < 2; c2++) {
+        const a = i * 3 + c2, b = a + 1, c = (i + 1) * 3 + c2, d = c + 1;
+        ai.push(a, b, c, b, d, c);
+      }
     }
     const ag = new THREE.BufferGeometry();
     ag.setAttribute('position', new THREE.Float32BufferAttribute(av, 3));

@@ -102,7 +102,7 @@ function resetMX(): void {
 // ── HUD Visibility ──
 function setHUDVisible(visible: boolean): void {
   const els = [
-    'bottomActions', 'achTray', 'wheelieBtn', 'wmLogo',
+    'bottomActions', 'achTray', 'wmLogo',
   ];
   const hudPanels = document.querySelectorAll('.hud-panel, .hud-corner, .bottom-bar');
   for (const id of els) {
@@ -434,39 +434,49 @@ function updateMX(t: number): void {
   // cornering scrub while leaned over (mild — washouts are the real cost)
   mxBike.speed *= 1 - Math.abs(mxBike.lean) * 0.05 * dt;
 
-  // Wheelie mechanics — front tire UP, back tire DOWN.
-  // Mobile: no button — lean back on the stick while on the gas with revs
-  // (torque lofts the front); sustaining it needs less than starting it.
+  // Wheelie mechanics — a BALANCE GAME, not a held switch.
+  // Entry: lean back hard on the gas with revs up (torque lofts the front).
+  // Once up, the balance point drifts: throttle and lean-back rotate you
+  // further back, speed and rough ground shake you, and you manage it by
+  // modulating the stick (or steering on desktop). Drift too far back →
+  // loop-out bail; let the nose drop → it just sets down.
   const wheelieIn = mob
-    ? (mxBike.wheelie
-        ? TC.leanY > 0.3 && accelOn
-        : TC.leanY > 0.55 && accelOn && mxBike.rpm > 0.5)
+    ? (mxBike.wheelie ? TC.leanY > 0.05 && accelOn : TC.leanY > 0.55 && accelOn && mxBike.rpm > 0.5)
     : I.space;
   if (wheelieIn && mxTimer.running && !mxBike.airborne && mxBike.speed > 3) {
     if (!mxBike.wheelie) {
       mxBike.wheelie = true;
-      mxBike.wheelieBalance = 0;
+      mxBike.wheelieBalance = -0.25;    // starts nose-heavy — feed it back
       mxBike.wheelieTime = 0;
       if (isSoundOn()) sndWheelie();
     }
     mxBike.wheelieTime += dt;
-    // Balance drifts — more forgiving, player must keep cursor centered
-    const balanceDrift = (Math.random() - 0.5) * 1.0 * dt;
-    const steerCorrection = -mxBike.lat * 0.3 * dt;
-    mxBike.wheelieBalance += balanceDrift + steerCorrection;
+    // balance forces: torque rotates back, natural droop pulls forward,
+    // lean input is the control, rough ground (chassis chatter) shakes it
+    const torquePull = accelOn ? (0.35 + mxBike.rpm * 0.5) : -0.6;
+    const droop = -0.45;
+    const leanCtl = mob ? (TC.leanY - 0.45) * 1.6 : 0;
+    const roughness = Math.min(1.2, Math.abs(mxBike.pitchVel) * 0.5);
+    const shake = (Math.random() - 0.5) * (0.5 + roughness * 1.6 + (mxBike.speed / mxBike.maxSpeed) * 0.5);
+    mxBike.wheelieBalance += (torquePull + droop + leanCtl + shake) * dt
+      - mxBike.lat * 0.3 * dt;
     mxBike.wheelieBalance = Math.max(-1, Math.min(1, mxBike.wheelieBalance));
-    // Speed bonus while wheeling
+    // riding the sweet spot pays; hanging too far back is on the edge
     mxBike.speed = Math.min(mxBike.speed * (1 + 0.003 * dt * 60), mxBike.maxSpeed * 1.15);
-    // Turning penalty
     mxBike.lat *= 0.97;
-    // Bail if balance is too far off
-    if (Math.abs(mxBike.wheelieBalance) > 0.95) {
+    if (mxBike.wheelieBalance > 0.95) {
+      // loop-out: hard bail, big speed loss
       mxBike.wheelie = false;
-      mxBike.speed *= 0.75;
+      mxBike.speed *= 0.6;
+      mxBike.wheelieBalance = 0;
+      mxBike.pitchVel += 3.5;
+      if (isSoundOn()) sndWheelieEnd();
+    } else if (mxBike.wheelieBalance < -0.9) {
+      // nose dropped — clean set-down, no penalty
+      mxBike.wheelie = false;
       mxBike.wheelieBalance = 0;
       if (isSoundOn()) sndWheelieEnd();
     }
-    // Track achievement
     if (mxBike.wheelieTime > (achState.mxMaxAir || 0)) achState.mxMaxAir = mxBike.wheelieTime;
   } else if (mxBike.wheelie) {
     mxBike.wheelie = false;
@@ -676,7 +686,7 @@ function updateMX(t: number): void {
   let pitchTarget: number;
   let stiff: number, damp: number;
   if (mxBike.wheelie) {
-    pitchTarget = -0.62;
+    pitchTarget = -0.38 - Math.max(0, mxBike.wheelieBalance + 0.6) * 0.45;
     stiff = 60; damp = 10;
   } else if (mxBike.airborne) {
     // follow the flight arc; throttle lifts the nose, brake dips it

@@ -3,6 +3,7 @@ import type { TrackDef } from './types';
 export const MX_TRACKS: TrackDef[] = [
   {
     name: 'DUST BOWL',
+    hills: [[2.2, 1, 0.7], [1.0, 2, 2.4]],
     envColor: [255, 145, 40],
     envType: 'desert',
     // Flowing loop inspired by heightmap — wide right sweep, tight left return.
@@ -27,6 +28,7 @@ export const MX_TRACKS: TrackDef[] = [
   },
   {
     name: 'GLACIER RUN',
+    hills: [[3.0, 1, 1.6]],
     envColor: [100, 210, 255],
     envType: 'ice',
     // Long flowing sweeps — momentum track, low grip rewards smooth lines.
@@ -49,29 +51,32 @@ export const MX_TRACKS: TrackDef[] = [
   },
   {
     name: 'NEON CITY',
+    hills: [[0.9, 2, 0.3]],
     envColor: [220, 40, 180],
     envType: 'neon',
-    // Street-circuit rhythm: doubles and rhythm lanes between the berms.
+    // Folded SX street circuit: parallel lanes, 180 bowl turns, night city.
     pts: [
-      [-16.8, -20.2], [-13.7, -31.4], [-4.6, -43.2], [9.2, -36.4], [16.0, -20.6],
-      [22.9, -11.7], [36.5, -2.3], [40.4, 12.2], [27.7, 18.9], [16.8, 20.2],
-      [13.7, 31.4], [4.6, 43.2], [-9.2, 36.4], [-16.0, 20.6], [-22.9, 11.7],
-      [-36.5, 2.3], [-40.4, -12.2], [-27.7, -18.9],
+      [0, 0], [20, -2], [40, 2], [58, 0], [70, 8],
+      [72, 20], [60, 28], [38, 24], [16, 28], [0, 26],
+      [-12, 34], [-10, 46], [2, 54], [24, 50], [46, 54],
+      [64, 50], [78, 42], [86, 26], [84, 6], [72, -8],
+      [48, -14], [24, -16], [4, -15], [-10, -12], [-16, -4], [-10, 3],
     ],
     obs: [
-      { type: 'double', at: 0.06, h: 2.4, len: 0.12 },
-      { type: 'berm', at: 0.18, side: 1 },
-      { type: 'rhythm', at: 0.22, h: 1.6, len: 0.13, count: 4 },
-      { type: 'berm', at: 0.42, side: -1 },
-      { type: 'tabletop', at: 0.46, h: 2.4, len: 0.12 },
-      { type: 'berm', at: 0.66, side: 1 },
-      { type: 'double', at: 0.70, h: 2.6, len: 0.13 },
-      { type: 'whoops', at: 0.84, h: 0.8, len: 0.09, count: 6 },
-      { type: 'berm', at: 0.94, side: -1 },
+      { type: 'rhythm', at: 0.02, h: 1.5, len: 0.09, count: 3 },
+      { type: 'berm', at: 0.150, side: 1 },
+      { type: 'rhythm', at: 0.24, h: 1.6, len: 0.10, count: 4 },
+      { type: 'berm', at: 0.380, side: 1 },
+      { type: 'whoops', at: 0.46, h: 0.8, len: 0.09, count: 6 },
+      { type: 'berm', at: 0.615, side: -1 },
+      { type: 'double', at: 0.72, h: 2.6, len: 0.12 },
+      { type: 'tabletop', at: 0.82, h: 2.4, len: 0.10 },
+      { type: 'berm', at: 0.925, side: 1 },
     ],
   },
   {
     name: 'VOLCANIC RIDGE',
+    hills: [[2.2, 2, 1.0], [0.8, 3, 0.2]],
     envColor: [255, 60, 20],
     envType: 'volcanic',
     // Canyon switchbacks — the technical one. Big commitment doubles.
@@ -95,6 +100,7 @@ export const MX_TRACKS: TrackDef[] = [
   },
   {
     name: 'RAINFOREST',
+    hills: [[2.0, 1, 3.6], [1.2, 3, 1.1]],
     envColor: [30, 200, 80],
     envType: 'jungle',
     // Tight S-curves with switchbacks — rhythm-heavy flow track.
@@ -120,26 +126,27 @@ export const MX_TRACKS: TrackDef[] = [
   },
   {
     name: 'MIDNIGHT STADIUM',
+    hills: [[0.6, 2, 2.6]],
     envColor: [180, 100, 255],
     envType: 'stadium',
-    // Supercross: everything tight, whoop wall, triple-sized double.
+    // Folded supercross: lanes + 180 bowls, whoop wall, stadium triple.
     pts: [
-      [-12.1, -34.4], [0.4, -25.1], [9.3, -25.4], [26.3, -33.7], [36.6, -26.0],
-      [29.7, -10.5], [30.3, -1.9], [40.7, 9.5], [33.5, 20.1], [15.7, 18.9],
-      [8.0, 22.7], [-0.5, 37.5], [-13.8, 37.6], [-18.1, 23.2], [-25.3, 17.9],
-      [-42.8, 15.1], [-44.2, 2.7], [-27.6, -6.4], [-22.3, -13.4], [-23.6, -28.4],
+      [0, 0], [24, 0], [46, 0], [60, 10], [58, 24],
+      [44, 30], [20, 26], [-2, 30], [-16, 38], [-14, 50],
+      [0, 56], [22, 52], [40, 56], [56, 50], [68, 36],
+      [70, 12], [60, -8], [36, -16], [14, -18], [-6, -16],
+      [-16, -8], [-17, 2],
     ],
     obs: [
-      { type: 'double', at: 0.04, h: 2.6, len: 0.13 },      // launch straight out of the gate
-      { type: 'berm', at: 0.17, side: 1 },
-      { type: 'rhythm', at: 0.21, h: 1.7, len: 0.13, count: 4 },
-      { type: 'berm', at: 0.36, side: -1 },
-      { type: 'double', at: 0.40, h: 3.0, len: 0.15 },      // stadium triple
-      { type: 'berm', at: 0.56, side: 1 },
-      { type: 'whoops', at: 0.60, h: 0.9, len: 0.11, count: 8 }, // SX whoop wall
-      { type: 'berm', at: 0.74, side: -1 },
-      { type: 'tabletop', at: 0.78, h: 2.4, len: 0.12 },
-      { type: 'berm', at: 0.92, side: 1 },
+      { type: 'double', at: 0.03, h: 2.6, len: 0.11 },
+      { type: 'berm', at: 0.155, side: 1 },
+      { type: 'rhythm', at: 0.21, h: 1.7, len: 0.11, count: 4 },
+      { type: 'berm', at: 0.385, side: 1 },
+      { type: 'whoops', at: 0.45, h: 0.9, len: 0.09, count: 7 },
+      { type: 'berm', at: 0.60, side: -1 },
+      { type: 'double', at: 0.70, h: 3.0, len: 0.13 },
+      { type: 'tabletop', at: 0.80, h: 2.4, len: 0.10 },
+      { type: 'berm', at: 0.925, side: 1 },
     ],
   },
 ];
