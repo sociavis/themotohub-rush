@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { MX_TRACKS, TRACK_W, MX_CHECKPOINTS } from './tracks';
-import { scene, applyAtmosphere } from './renderer';
+import { scene, applyAtmosphere, ground } from './renderer';
 import { bikeGroup } from './bike';
 import { makeTrackTexture, makeCheckerTexture, makeBannerTexture, makeSideBannerTexture, makeCrowdTexture, makeGlowSprite } from './textures';
 import { loadMxProps, mxPropsReady, onMxPropsLoaded, cloneMxProp } from './props-glb';
@@ -123,6 +123,7 @@ s4.add(bikeGroup);
 // ── Precomputed Height / Berm LUTs ──
 const TRACK_LUT_RES = 2000;
 const _heightLUT = new Float32Array(TRACK_LUT_RES + 1);
+const _baseLUT = new Float32Array(TRACK_LUT_RES + 1);   // hills baseline only
 const _bermLUT = new Float32Array(TRACK_LUT_RES + 1);
 
 // smoothstep 0..1
@@ -178,6 +179,7 @@ function buildTrackLUT(): void {
     // rolling baseline elevation (integer cycles → seamless loop)
     let h = 0, b = 0;
     for (const [amp, cyc, ph] of hills) h += amp * Math.sin(tP * Math.PI * 2 * cyc + ph);
+    _baseLUT[i] = h;
     for (const ob of trk.obs) {
       if (ob.type === 'berm') {
         const w = ob.len || 0.06;
@@ -198,8 +200,14 @@ function buildTrackLUT(): void {
   }
   // ground the lowest point of the lap at 0
   let minH = Infinity;
-  for (let i = 0; i <= TRACK_LUT_RES; i++) minH = Math.min(minH, _heightLUT[i]);
-  if (minH !== 0) for (let i = 0; i <= TRACK_LUT_RES; i++) _heightLUT[i] -= minH;
+  for (let i = 0; i <= TRACK_LUT_RES; i++) minH = Math.min(minH, _baseLUT[i]);
+  for (let i = 0; i <= TRACK_LUT_RES; i++) { _heightLUT[i] -= minH; _baseLUT[i] -= minH; }
+}
+
+export function getTrackBaseline(tParam: number): number {
+  const tw = ((tParam % 1) + 1) % 1;
+  const idx = Math.round(tw * TRACK_LUT_RES);
+  return _baseLUT[Math.min(idx, TRACK_LUT_RES)];
 }
 
 export function getTrackHeight(tParam: number): number {
@@ -308,7 +316,14 @@ export function buildTrack(): void {
   }
   buildTrackLUT();
   trackSamples = [];
-  for (let i = 0; i < 140; i++) trackSamples.push(mxSpline.getPointAt(i / 140));
+  trackSampleBase = [];
+  for (let i = 0; i < 140; i++) {
+    trackSamples.push(mxSpline.getPointAt(i / 140));
+    trackSampleBase.push(getTrackBaseline(i / 140));
+  }
+  terrainAmp = TERRAIN_AMP[trk.envType];
+  terrainSeed = mxTrackIdx * 3.7 + 1.3;
+  buildTerrain();
   trackR = 0;
   for (const sp of trackSamples) trackR = Math.max(trackR, Math.hypot(sp.x, sp.z));
   trackR += TRACK_W;
@@ -368,10 +383,12 @@ export function buildTrack(): void {
     for (let i = 0; i <= RES; i++) {
       const edge = side > 0 ? leftPts[i] : rightPts[i];
       const n = normals[i];
-      const midY = Math.max(edge.y * 0.4, 0.02);
+      const baseY = getTrackBaseline(i / RES) - 0.35;
+      const rel = edge.y - baseY;
+      const midY = baseY + Math.max(rel * 0.4, 0.02);
       av.push(edge.x, edge.y + 0.015, edge.z);
       av.push(edge.x + n.x * 1.3 * side, midY, edge.z + n.z * 1.3 * side);
-      av.push(edge.x + n.x * (1.3 + 1.1 + edge.y * 1.1) * side, 0.02, edge.z + n.z * (1.3 + 1.1 + edge.y * 1.1) * side);
+      av.push(edge.x + n.x * (1.3 + 1.1 + rel * 1.1) * side, baseY + 0.02, edge.z + n.z * (1.3 + 1.1 + rel * 1.1) * side);
       auv.push(0, (i / RES) * vRepeat, 0.5, (i / RES) * vRepeat, 1, (i / RES) * vRepeat);
     }
     for (let i = 0; i < RES; i++) {
@@ -517,6 +534,56 @@ function stdMat(color: number, roughness = 0.9, metalness = 0): THREE.MeshStanda
 
 // Sampled spline points so props never land on the racing line
 let trackSamples: THREE.Vector3[] = [];
+let trackSampleBase: number[] = [];   // baseline height at each sample
+
+// ── Terrain heightfield: outdoor venues get a rolling landscape that the
+// track threads through (blended flush near the racing line); indoor
+// venues keep the flat arena floor ──
+const TERRAIN_AMP: Record<TrackDef['envType'], number> = {
+  desert: 3.4, ice: 4.4, neon: 0, volcanic: 3.8, jungle: 3.0, stadium: 0,
+};
+let terrainAmp = 0;
+let terrainSeed = 0;
+let terrainMesh: THREE.Mesh | null = null;
+
+function terrainNoise(x: number, z: number): number {
+  const s1 = Math.sin(x * 0.021 + terrainSeed) * Math.sin(z * 0.017 + terrainSeed * 1.7);
+  const s2 = Math.sin(x * 0.043 + terrainSeed * 2.3) * Math.sin(z * 0.038 - terrainSeed);
+  const s3 = Math.sin((x + z) * 0.011 - terrainSeed * 0.6);
+  return Math.max((s1 * 0.55 + s2 * 0.25 + s3 * 0.45) * terrainAmp, -1.8);
+}
+
+export function terrainYAt(x: number, z: number): number {
+  if (terrainAmp === 0) return 0;
+  let best = Infinity, bestH = 0;
+  for (let i = 0; i < trackSamples.length; i++) {
+    const p = trackSamples[i];
+    const dx = p.x - x, dz = p.z - z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < best) { best = d2; bestH = trackSampleBase[i]; }
+  }
+  const d = Math.sqrt(best);
+  const w = Math.max(0, Math.min(1, (d - TRACK_W - 1.4) / 16));
+  const sm = w * w * (3 - 2 * w);   // 0 at the track → 1 in open country
+  return (bestH - 0.35) * (1 - sm) + terrainNoise(x, z) * sm;
+}
+
+function buildTerrain(): void {
+  if (terrainMesh) { scene.remove(terrainMesh); terrainMesh.geometry.dispose(); terrainMesh = null; }
+  if (terrainAmp === 0) { ground.visible = true; return; }
+  ground.visible = false;   // the heightfield replaces the flat plane
+  const SIZE = 480, SEG = 100;
+  const geo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setY(i, terrainYAt(pos.getX(i), pos.getZ(i)) - 0.04);
+  }
+  geo.computeVertexNormals();
+  terrainMesh = new THREE.Mesh(geo, (ground as THREE.Mesh).material);
+  terrainMesh.receiveShadow = true;
+  scene.add(terrainMesh);
+}
 // Bounding radius of the current layout — horizon props stay beyond this
 let trackR = 60;
 // Zone behind the start line where the chase camera sits at the gate drop
@@ -620,7 +687,7 @@ function makeFloodTower(x: number, z: number, withLight: boolean): THREE.Group {
     g.add(spot);
     g.add(spot.target);
   }
-  g.position.set(x, 0, z);
+  g.position.set(x, terrainYAt(x, z) + 0, z);
   return g;
 }
 
@@ -687,13 +754,13 @@ function buildEnvironment(trk: TrackDef): void {
     horizonRing(9, 22, 48, (x, z) => {
       const mh = 4 + Math.random() * 7, mw = 8 + Math.random() * 14;
       const mesa = new THREE.Mesh(new THREE.CylinderGeometry(mw * 0.55, mw, mh, 7), stdMat(0xb0714a, 0.95));
-      mesa.position.set(x, mh / 2 - 0.4, z);
+      mesa.position.set(x, terrainYAt(x, z) + mh / 2 - 0.4, z);
       addProp(mesa, false);
     });
     // Rocks
     ring(16, 12, 40, (x, z) => {
       const rock = makeRock(0.25 + Math.random() * 0.8, 0xa5764e);
-      rock.position.set(x, 0.12, z);
+      rock.position.set(x, terrainYAt(x, z) + 0.12, z);
       addProp(rock);
     });
     // Saguaro cacti
@@ -712,13 +779,13 @@ function buildEnvironment(trk: TrackDef): void {
           g.add(arm);
         }
       }
-      g.position.set(x, 0, z);
+      g.position.set(x, terrainYAt(x, z) + 0, z);
       addProp(g);
     });
     // Dry brush
     ring(14, 8, 34, (x, z) => {
       const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22 + Math.random() * 0.25, 0), stdMat(0x8a7a44, 0.95));
-      bush.position.set(x, 0.15, z);
+      bush.position.set(x, terrainYAt(x, z) + 0.15, z);
       addProp(bush, false);
     });
     makeSideBanners(6, 'THEMOTOHUB', '#c1272d', '#ffffff');
@@ -726,18 +793,18 @@ function buildEnvironment(trk: TrackDef): void {
     // Alpine: snowy pines + mountain backdrop
     ring(18, 12, 44, (x, z) => {
       const tree = makePine(true);
-      tree.position.set(x, 0, z);
+      tree.position.set(x, terrainYAt(x, z) + 0, z);
       addProp(tree);
     });
     horizonRing(8, 24, 50, (x, z) => {
       const mh = 12 + Math.random() * 16;
       const mtn = new THREE.Mesh(new THREE.ConeGeometry(mh * 0.75, mh, 7), stdMat(0xdde6ee, 0.95));
-      mtn.position.set(x, mh / 2 - 1, z);
+      mtn.position.set(x, terrainYAt(x, z) + mh / 2 - 1, z);
       addProp(mtn, false);
     });
     ring(10, 8, 30, (x, z) => {
       const rock = makeRock(0.2 + Math.random() * 0.5, 0x9aa4ae);
-      rock.position.set(x, 0.1, z);
+      rock.position.set(x, terrainYAt(x, z) + 0.1, z);
       addProp(rock);
     });
     makeSideBanners(6, 'GLACIER GP', '#1e3a5c', '#ffffff');
@@ -749,7 +816,7 @@ function buildEnvironment(trk: TrackDef): void {
         new THREE.BoxGeometry(bw, bh, bw),
         new THREE.MeshStandardMaterial({ color: 0x0d1420, emissive: 0x24304a, emissiveIntensity: 0.35, roughness: 0.9 }),
       );
-      bld.position.set(x, bh / 2, z);
+      bld.position.set(x, terrainYAt(x, z) + bh / 2, z);
       bld.rotation.y = Math.random() * Math.PI * 0.5;
       addProp(bld, false);
     });
@@ -763,13 +830,13 @@ function buildEnvironment(trk: TrackDef): void {
     horizonRing(14, 14, 40, (x, z) => {
       const rh = 3 + Math.random() * 8, rr = 0.8 + Math.random() * 2;
       const spire = new THREE.Mesh(new THREE.ConeGeometry(rr, rh, 6), stdMat(0x453029, 0.95));
-      spire.position.set(x, rh / 2 - 0.3, z);
+      spire.position.set(x, terrainYAt(x, z) + rh / 2 - 0.3, z);
       spire.rotation.y = Math.random() * Math.PI;
       addProp(spire, false);
     });
     ring(16, 10, 36, (x, z) => {
       const rock = makeRock(0.25 + Math.random() * 0.7, 0x51392e);
-      rock.position.set(x, 0.12, z);
+      rock.position.set(x, terrainYAt(x, z) + 0.12, z);
       addProp(rock);
     });
     // Glow vents
@@ -778,11 +845,11 @@ function buildEnvironment(trk: TrackDef): void {
       const pool = new THREE.Mesh(new THREE.CircleGeometry(0.8 + Math.random() * 1.4, 14),
         new THREE.MeshStandardMaterial({ color: 0x201008, emissive: 0xff5a1e, emissiveIntensity: 1.8, roughness: 0.8 }));
       pool.rotation.x = -Math.PI / 2;
-      pool.position.set(x, 0.02, z);
+      pool.position.set(x, terrainYAt(x, z) + 0.02, z);
       addProp(pool, false);
       if (vents++ < 3) {
         const glow = new THREE.PointLight(0xff6a2a, 14, 14, 1.8);
-        glow.position.set(x, 0.8, z);
+        glow.position.set(x, terrainYAt(x, z) + 0.8, z);
         addProp(glow as any, false);
       }
     });
@@ -791,17 +858,17 @@ function buildEnvironment(trk: TrackDef): void {
     // Forest — layered leafy trees + ferns, misty
     ring(20, 11, 42, (x, z) => {
       const tree = makeLeafTree();
-      tree.position.set(x, 0, z);
+      tree.position.set(x, terrainYAt(x, z) + 0, z);
       addProp(tree);
     });
     ring(14, 7, 30, (x, z) => {
       const fern = new THREE.Mesh(new THREE.ConeGeometry(0.3 + Math.random() * 0.35, 0.6 + Math.random() * 0.5, 6), stdMat(0x35692c, 0.9));
-      fern.position.set(x, 0.25, z);
+      fern.position.set(x, terrainYAt(x, z) + 0.25, z);
       addProp(fern, false);
     });
     ring(8, 9, 28, (x, z) => {
       const rock = makeRock(0.2 + Math.random() * 0.45, 0x6a6a5a);
-      rock.position.set(x, 0.1, z);
+      rock.position.set(x, terrainYAt(x, z) + 0.1, z);
       addProp(rock);
     });
     makeSideBanners(6, 'FOREST MX', '#1e4a26', '#ffffff');

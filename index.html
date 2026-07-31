@@ -380,6 +380,10 @@
   .toast-reward{margin-left:8px;font-size:10px;letter-spacing:0.08em;font-weight:700}
 .touch-controls { display: none; }
 /* ── Mobile racing: minimal HUD — ☰ reveals the full UI ── */
+body.mob-racing:not(.mob-hud-open) .hud-panel.bottom-left {
+  display: block !important;
+  left: 14px; bottom: 168px; font-size: 9px; opacity: 0.7;
+}
 body.mob-racing:not(.mob-hud-open) .hud-corner,
 body.mob-racing:not(.mob-hud-open) .ach-tray,
 body.mob-racing:not(.mob-hud-open) .wm-logo,
@@ -403,8 +407,8 @@ body.mob-racing .touch-controls { display: block; }
   position: absolute; width: 132px; height: 132px; border-radius: 50%;
   border: 2px solid rgba(237,47,54,0.45); background: rgba(20,10,8,0.35);
   backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
-  transform: translate(-50%, -50%); pointer-events: none;
-  left: 110px; bottom: 92px; top: auto;
+  transform: translate(-50%, 50%); pointer-events: none;
+  left: 78px; bottom: 72px; top: auto;
 }
 .tc-knob {
   position: absolute; top: 50%; left: 50%; width: 52px; height: 52px;

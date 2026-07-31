@@ -51,7 +51,6 @@ export const MX_TRACKS: TrackDef[] = [
   },
   {
     name: 'NEON CITY',
-    hills: [[0.9, 2, 0.3]],
     envColor: [220, 40, 180],
     envType: 'neon',
     // Folded SX street circuit: parallel lanes, 180 bowl turns, night city.
@@ -126,7 +125,6 @@ export const MX_TRACKS: TrackDef[] = [
   },
   {
     name: 'MIDNIGHT STADIUM',
-    hills: [[0.6, 2, 2.6]],
     envColor: [180, 100, 255],
     envType: 'stadium',
     // Folded supercross: lanes + 180 bowls, whoop wall, stadium triple.
