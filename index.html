@@ -126,17 +126,28 @@
   }
 
   /* LOADING SCREEN */
-  .loading-screen{position:fixed;inset:0;z-index:999;background:#12100d;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.8s ease,visibility 0.8s ease}
+  .loading-screen{position:fixed;inset:0;z-index:999;background:radial-gradient(120% 90% at 50% 18%,#241211 0%,#12100d 62%);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.8s ease,visibility 0.8s ease}
   .loading-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
-  .loading-ring{width:80px;height:80px;position:relative}
+  /* Starting-gate motif: five gate slats drop in sequence, then the bar fills */
+.ld-mark{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:26px}
+.ld-logo{width:clamp(120px,20vh,190px);height:auto;filter:drop-shadow(0 6px 22px rgba(0,0,0,0.55))}
+.ld-rush{font-family:'Bring Race','Archivo Black',sans-serif;font-size:clamp(20px,4.6vh,30px);letter-spacing:0.34em;color:#ED2F36;text-shadow:0 0 26px rgba(237,47,54,0.45);padding-left:0.34em}
+.ld-gate{display:flex;gap:5px;align-items:flex-end;height:22px;margin-bottom:18px}
+.ld-gate span{display:block;width:7px;height:22px;border-radius:1px;background:linear-gradient(180deg,#ED2F36,#8d1a1f);transform-origin:top center;animation:gateDrop 1.5s cubic-bezier(0.5,0,0.35,1) infinite}
+.ld-gate span:nth-child(2){animation-delay:0.09s}
+.ld-gate span:nth-child(3){animation-delay:0.18s}
+.ld-gate span:nth-child(4){animation-delay:0.27s}
+.ld-gate span:nth-child(5){animation-delay:0.36s}
+@keyframes gateDrop{0%,18%{transform:scaleY(1);opacity:0.95}52%{transform:scaleY(0.12);opacity:0.35}86%,100%{transform:scaleY(1);opacity:0.95}}
+.loading-ring{display:none}
   .loading-ring-inner{position:absolute;inset:0;border:2px solid transparent;border-radius:50%}
   .loading-ring-inner:nth-child(1){border-top-color:#ff5a0a;animation:loadSpin 1.2s cubic-bezier(0.5,0,0.5,1) infinite}
   .loading-ring-inner:nth-child(2){border-right-color:#ffb25e;animation:loadSpin 1.2s cubic-bezier(0.5,0,0.5,1) infinite;animation-delay:-0.45s}
   .loading-ring-inner:nth-child(3){border-bottom-color:#ff2244;animation:loadSpin 1.2s cubic-bezier(0.5,0,0.5,1) infinite;animation-delay:-0.3s}
   .loading-diamond{width:12px;height:12px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);border:1.5px solid rgba(237,47,54,0.6);animation:loadPulse 1.6s ease-in-out infinite}
-  .loading-text{margin-top:24px;font-family:'Chivo Mono',monospace;font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:rgba(237,47,54,0.6);animation:loadTextPulse 2s ease-in-out infinite}
-  .loading-bar{width:120px;height:1px;margin-top:16px;background:rgba(255,255,255,0.06);border-radius:1px;overflow:hidden}
-  .loading-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#ff5a0a,#ffb25e);border-radius:1px;transition:width 0.3s ease}
+  .loading-text{margin-top:14px;font-family:'Chivo Mono',monospace;font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:rgba(255,255,255,0.5);animation:loadTextPulse 2s ease-in-out infinite}
+  .loading-bar{width:min(210px,54vw);height:2px;margin-top:0;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden}
+  .loading-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#8d1a1f,#ED2F36 60%,#ff7a80);border-radius:2px;box-shadow:0 0 12px rgba(237,47,54,0.55);transition:width 0.35s ease}
   @keyframes loadSpin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
   @keyframes loadPulse{0%,100%{transform:translate(-50%,-50%) rotate(45deg) scale(1);opacity:0.6}50%{transform:translate(-50%,-50%) rotate(45deg) scale(1.3);opacity:1}}
   @keyframes loadTextPulse{0%,100%{opacity:0.4}50%{opacity:0.9}}
@@ -450,15 +461,47 @@ body.mob-racing .touch-controls { display: block; }
 .rotate-overlay .ro-text { font-size: 16px; letter-spacing: 0.2em; text-transform: uppercase; }
 .rotate-overlay .ro-sub { font-size: 11px; letter-spacing: 0.14em; opacity: 0.55; text-transform: uppercase; }
 @keyframes ro-tilt { 0%, 20% { transform: rotate(0deg); } 55%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(-90deg); } }
+
+/* ── Short viewports (landscape phones ≈390–430px tall) ──
+   The UI was laid out for tall screens; in the app the game runs landscape,
+   so compress the menu chrome and let every full-screen surface scroll. */
+@media (max-height: 560px) {
+  .main-menu, .track-select, .post-race {
+    align-items: flex-start;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 0 20px;
+  }
+  .mm-content { max-width: 460px; }
+  .mm-logo { margin-bottom: 2px; }
+  .mm-logo img { width: clamp(84px, 15vh, 130px) !important; }
+  .mm-title { font-size: clamp(20px, 5.2vh, 30px); letter-spacing: 0.2em; }
+  .mm-subtitle { font-size: 8px; letter-spacing: 0.45em; }
+  .mm-rider-info { margin: 8px 0 12px; padding: 7px 12px; gap: 3px; }
+  .mm-rider-row { font-size: 9px; }
+  .mm-buttons { gap: 6px; }
+  .mm-btn { padding: 9px 16px; font-size: 11px; gap: 10px; }
+  .fullpage-screen { padding: 14px 0; }
+  .ts-content, .pr-content { padding: 14px 0; }
+  .ts-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .fp-header { margin-bottom: 10px; }
+  .shop-bike-preview { height: 150px; }
+}
 </style>
 <link rel="icon" type="image/svg+xml" href="./brand/tmh-appicon.svg">
 <link rel="apple-touch-icon" href="./brand/tmh-appicon.svg">
 </head>
 <body>
 <div class="loading-screen" id="loadingScreen">
-  <div class="loading-ring"><div class="loading-ring-inner"></div><div class="loading-ring-inner"></div><div class="loading-ring-inner"></div><div class="loading-diamond"></div></div>
-  <div class="loading-text">Initializing</div>
+  <div class="ld-mark">
+    <img class="ld-logo" src="./brand/tmh-logo.svg" alt="TheMotoHub">
+    <div class="ld-rush">Rush</div>
+  </div>
+  <div class="ld-gate">
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
   <div class="loading-bar"><div class="loading-bar-fill" id="loadBarFill"></div></div>
+  <div class="loading-text" id="loadText">Dropping the gate</div>
 </div>
 <div class="welcome-screen" id="welcomeScreen"><div class="ws-content"></div></div>
 <div class="main-menu" id="mainMenu"></div>
