@@ -3,6 +3,7 @@ import { MX_TRACKS, TRACK_W, MX_CHECKPOINTS } from './tracks';
 import { scene, applyAtmosphere } from './renderer';
 import { bikeGroup } from './bike';
 import { makeTrackTexture, makeCheckerTexture, makeBannerTexture, makeSideBannerTexture, makeCrowdTexture, makeGlowSprite } from './textures';
+import { loadMxProps, mxPropsReady, onMxPropsLoaded, cloneMxProp } from './props-glb';
 import type { TrackDef } from './types';
 
 // ── Track State ──
@@ -491,6 +492,12 @@ export function buildTrack(): void {
   // Environment + atmosphere
   buildEnvironment(trk);
   setAtmosphere(trk);
+  loadMxProps();
+  if (mxPropsReady()) {
+    placeMxProps();
+  } else {
+    onMxPropsLoaded(() => { if (mxTrackMeshes.length) placeMxProps(); });
+  }
 
   // Particle colors follow the dirt
   mxRoostMat.color.set(style.dirt);
@@ -806,6 +813,60 @@ function buildEnvironment(trk: TrackDef): void {
       addProp(makeFloodTower(x, z, lit++ < 2), false);
     });
     makeSideBanners(10, 'RUSH', '#c1272d', '#ffffff');
+  }
+}
+
+// ── Trackside prop pack (paddock, fences, billboards…) ──
+function placeMxProps(): void {
+  if (!mxSpline) return;
+  const put = (name: string, x: number, z: number, rotY: number, scaleMul = 1): void => {
+    const prop = cloneMxProp(name, scaleMul);
+    if (!prop) return;
+    prop.position.x = x;
+    prop.position.z = z;
+    prop.rotation.y = rotY;
+    s4.add(prop);
+    mxTrackMeshes.push(prop);
+  };
+  // track-adjacent: fences + billboards parallel to the racing line
+  const trackSide = (t: number, name: string, off: number, faceTrack: boolean, scaleMul = 1): void => {
+    const pt = mxSpline!.getPointAt(t);
+    const tan = mxSpline!.getTangentAt(t).normalize();
+    const nrm = new THREE.Vector3(-tan.z, 0, tan.x);
+    const side = Math.random() > 0.5 ? 1 : -1;
+    const x = pt.x + nrm.x * (TRACK_W + off) * side;
+    const z = pt.z + nrm.z * (TRACK_W + off) * side;
+    if (!farFromTrack(x, z, TRACK_W + off - 1.4)) return;
+    const yaw = Math.atan2(tan.x, tan.z) + (faceTrack ? (side > 0 ? -Math.PI / 2 : Math.PI / 2) : 0);
+    put(name, x, z, yaw, scaleMul);
+  };
+  const fenceNames = ['valla 1', 'valla 2', 'valla 3'];
+  for (let i = 0; i < 10; i++) {
+    trackSide(Math.random(), fenceNames[i % 3], 2.4 + Math.random() * 1.2, false);
+  }
+  const adNames = ['publicidad del viejo', 'publicidad del viejo 2', 'pancarta 1', 'pancarta 2', 'pancarta 3'];
+  for (let i = 0; i < 5; i++) {
+    trackSide(Math.random(), adNames[i % adNames.length], 4.5 + Math.random() * 2, true);
+  }
+  // paddock scatter outside the racing line
+  const paddock: [string, number, number, number][] = [
+    ['carpa', 14, 30, 1],
+    ['carpa medica', 14, 30, 1],
+    ['ambulancia', 15, 32, 1],
+    ['bocato', 14, 28, 1],
+    ['banquitas', 12, 26, 1],
+    ['bano publico', 13, 28, 1],
+    ['bano publico', 13, 28, 1],
+    ['mirador', 16, 34, 1.2],
+    ['mirador', 16, 34, 1.2],
+    ['torre de a saber que', 24, 44, 1.2],
+    ['excavadora', 24, 42, 1],
+    ['llantas pintadas', 9, 22, 1],
+    ['llantas pintadas', 9, 22, 1],
+    ['check point', 10, 24, 1],
+  ];
+  for (const [name, minD, maxD, sc] of paddock) {
+    ring(1, minD, maxD, (x, z) => put(name, x, z, Math.random() * Math.PI * 2, sc), TRACK_W + 2.5);
   }
 }
 

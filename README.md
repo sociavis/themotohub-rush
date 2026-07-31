@@ -11,7 +11,10 @@ re-rigged for the game). Rider model: based on
 "Low-poly Motocross Character (rigged)" by
 [XHeheX](https://sketchfab.com/XHeheX) on Sketchfab, licensed
 [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/) (posed via
-runtime IK against the bike's grip/peg attach points).
+runtime IK against the bike's grip/peg attach points). Trackside props: based
+on "low poly Motocross Assets" by
+[e-restrepo1114](https://sketchfab.com/EmanuelRestrepoVelez) on Sketchfab,
+licensed [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/).
 
 **Play:** https://socia-visual-mx.vercel.app
 
