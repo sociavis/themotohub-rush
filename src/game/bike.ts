@@ -436,9 +436,11 @@ export const seat = bike.seatMesh;
 
 export function setBikeBodyColor(c: THREE.Color): void {
   bike.bodyMats.forEach(m => m.color.copy(c));
-  // untextured GLB plastics read washed out under ACES — boost sat a touch
+  // Deepen + saturate: flat tints render pastel under ACES tone mapping.
+  // This is the reference tone — plate side panels paint with the same
+  // value at full strength, so panels and plastics match exactly.
   const cv = c.clone();
-  cv.offsetHSL(0, 0.09, 0.015);
+  cv.offsetHSL(0, 0.14, -0.05);
   pendingColor = cv.clone();
   if (glbRig) glbRig.tintMats.forEach(m => m.color.copy(cv));
   riderRig?.setJerseyColor(cv);

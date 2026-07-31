@@ -113,6 +113,10 @@ function findBone(root: THREE.Object3D, prefix: string): THREE.Bone | null {
 // plastic material entirely — flat white base, colorway tint paints it.
 function stripGraphics(mat: THREE.MeshStandardMaterial): void {
   mat.map = null;
+  // Uniform plastic response: the stock textured materials carry high
+  // roughness/metalness that washes a flat tint out to pastel under ACES.
+  mat.roughness = 0.42;
+  mat.metalness = 0.0;
   mat.needsUpdate = true;
 }
 
@@ -230,7 +234,7 @@ function paintPlates(num: number): void {
     for (let i = 0; i < px.length; i += 4) {
       if (px[i] > 140 && px[i + 1] < 90 && px[i + 2] < 90) {
         // near-flat tint so panels match the untextured plastics exactly
-        const l = Math.min(1, 0.92 + (px[i] / 255) * 0.1);
+        const l = 1;
         px[i] = Math.min(255, tr * l); px[i + 1] = Math.min(255, tg * l); px[i + 2] = Math.min(255, tb * l);
       }
     }
