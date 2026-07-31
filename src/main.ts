@@ -33,6 +33,7 @@ import { showFullShop, showFullProfile, showFullAchievements, hideFullScreen } f
 
 // ── Embed mode (TheMotoHub / iframe hosting) ──
 import { IS_EMBED, postToHost, initHostBridge } from './game/host-bridge';
+import { storeGet, storeSet, storeRemove } from './game/safe-storage';
 export { IS_EMBED };
 if (IS_EMBED) document.body.classList.add('embed');
 initHostBridge();
@@ -900,7 +901,7 @@ function init(): void {
   loadAchState();
   initShop();
   // Number plates: garage override > profile racer number > default
-  const savedNum = localStorage.getItem('mx_rider_num');
+  const savedNum = storeGet('mx_rider_num');
   const profileNum = getUser()?.racerNumber;
   setRiderNumber(savedNum !== null ? parseInt(savedNum) : (profileNum || 7));
 

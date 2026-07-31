@@ -1,3 +1,4 @@
+import { storeGet, storeSet, storeRemove } from './safe-storage';
 export interface UserProfile {
   id: number;
   username: string;
@@ -44,7 +45,7 @@ export async function register(username: string, password: string, email: string
     userBestTimes = data.bestTimes || {};
     serverAchievements = data.achievementsData || '';
     serverUpgrades = data.upgradesData || '';
-    localStorage.setItem('mx_token', data.token);
+    storeSet('mx_token', data.token);
     return { ok: true };
   } catch {
     return { ok: false, error: 'Network error' };
@@ -64,7 +65,7 @@ export async function login(username: string, password: string): Promise<{ ok: b
     userBestTimes = data.bestTimes || {};
     serverAchievements = data.achievementsData || '';
     serverUpgrades = data.upgradesData || '';
-    localStorage.setItem('mx_token', data.token);
+    storeSet('mx_token', data.token);
     return { ok: true };
   } catch {
     return { ok: false, error: 'Network error' };
@@ -85,7 +86,7 @@ export async function hostLogin(hostToken: string): Promise<{ ok: boolean; error
     userBestTimes = data.bestTimes || {};
     serverAchievements = data.achievementsData || '';
     serverUpgrades = data.upgradesData || '';
-    localStorage.setItem('mx_token', data.token);
+    storeSet('mx_token', data.token);
     return { ok: true };
   } catch {
     return { ok: false, error: 'Network error' };
@@ -99,18 +100,18 @@ export async function logout(): Promise<void> {
   currentUser = null;
   authToken = null;
   userBestTimes = {};
-  localStorage.removeItem('mx_token');
+  storeRemove('mx_token');
 }
 
 export async function checkSession(): Promise<boolean> {
-  const token = localStorage.getItem('mx_token');
+  const token = storeGet('mx_token');
   if (!token) return false;
   authToken = token;
   try {
     const res = await apiFetch('/auth/me');
     if (!res.ok) {
       authToken = null;
-      localStorage.removeItem('mx_token');
+      storeRemove('mx_token');
       return false;
     }
     const data = await res.json();
@@ -121,7 +122,7 @@ export async function checkSession(): Promise<boolean> {
     return true;
   } catch {
     authToken = null;
-    localStorage.removeItem('mx_token');
+    storeRemove('mx_token');
     return false;
   }
 }

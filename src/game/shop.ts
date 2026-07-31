@@ -3,6 +3,7 @@ import { mxBike, setBikeBodyColor, setPartTier } from './bike';
 import { achState, ACH_DEFS } from './achievements';
 import type { RGB } from './types';
 import * as THREE from 'three';
+import { storeGet, storeSet, storeRemove } from './safe-storage';
 
 // ── Upgrade System ──
 
@@ -47,7 +48,7 @@ export const upgrades: UpgradeState = {
 // Load from localStorage
 function loadUpgrades(): void {
   try {
-    const saved = localStorage.getItem('mx_upgrades');
+    const saved = storeGet('mx_upgrades');
     if (saved) {
       const data = JSON.parse(saved);
       upgrades.funds = data.funds || 0;
@@ -64,7 +65,7 @@ function loadUpgrades(): void {
 
 export function saveUpgrades(): void {
   try {
-    localStorage.setItem('mx_upgrades', JSON.stringify({
+    storeSet('mx_upgrades', JSON.stringify({
       funds: upgrades.funds,
       tires: upgrades.tires,
       engine: upgrades.engine,

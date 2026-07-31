@@ -2,6 +2,7 @@ import type { AchievementDef, AchievementState } from './types';
 import { T, rgba, lerp } from './themes';
 import { sndAchievement } from './audio';
 import { mob } from './input';
+import { storeGet, storeSet, storeRemove } from './safe-storage';
 
 const SECTION_NAMES = ['MX'];
 
@@ -54,7 +55,7 @@ let activePopup: HTMLElement | null = null;
 // ── Persistence ──
 export function saveAchState(): void {
   try {
-    localStorage.setItem('mx_achstate', JSON.stringify({
+    storeSet('mx_achstate', JSON.stringify({
       unlocked: [...achState.unlocked],
       mxRacesCompleted: achState.mxRacesCompleted,
       mxLaps: achState.mxLaps,
@@ -69,7 +70,7 @@ export function saveAchState(): void {
 
 export function loadAchState(): void {
   try {
-    const saved = localStorage.getItem('mx_achstate');
+    const saved = storeGet('mx_achstate');
     if (saved) {
       const data = JSON.parse(saved);
       if (data.unlocked) for (const id of data.unlocked) achState.unlocked.add(id);

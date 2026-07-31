@@ -7,6 +7,7 @@ import { fmtMXTime } from '../game/stats';
 import { getWRForTrack } from '../game/leaderboard';
 import { setRiderNumber, getRiderNumber } from '../game/bike-glb';
 import { initBikePreview, destroyBikePreview, highlightPart, previewBikeColor, refreshPreviewBike } from './bike-preview';
+import { storeGet, storeSet, storeRemove } from '../game/safe-storage';
 
 const COIN = '◉';
 
@@ -146,7 +147,7 @@ function renderFullShop(el: HTMLElement): void {
   numInput?.addEventListener('input', () => {
     const v = Math.max(0, Math.min(999, parseInt(numInput.value) || 0));
     setRiderNumber(v);
-    localStorage.setItem('mx_rider_num', String(v));
+    storeSet('mx_rider_num', String(v));
   });
 
   // Upgrade hover → highlight part on bike
