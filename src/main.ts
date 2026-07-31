@@ -565,7 +565,13 @@ function updateMX(t: number): void {
     groundY + 0.35 + mxBike.suspBob,
     curPt.z + curNorm.z * mxBike.lat * TRACK_W * 0.8,
   );
-  mxBike.angle = Math.atan2(curTan.x, curTan.z);
+  // Yaw follows the spline tangent through a shortest-arc smoother — raw
+  // tangent direction has spikes at spline joins that snap the bike around
+  const yawTarget = Math.atan2(curTan.x, curTan.z);
+  let yawErr = yawTarget - mxBike.angle;
+  while (yawErr > Math.PI) yawErr -= Math.PI * 2;
+  while (yawErr < -Math.PI) yawErr += Math.PI * 2;
+  mxBike.angle += yawErr * Math.min(1, dt * 10);
   bikeGroup.position.copy(mxBike.pos);
   bikeGroup.rotation.y = mxBike.angle;
   bikeGroup.rotation.z = mxBike.lean * 0.7;
@@ -612,7 +618,7 @@ function updateMX(t: number): void {
   updateRiderPose({
     crouch: mxBike.airborne ? 1 : Math.min(0.85, (mxBike.speed / mxBike.maxSpeed) * 1.1),
     back: mxBike.wheelie ? 1 : 0,
-    legOut: grounded && mxBike.speed > 4 && Math.abs(mxBike.lean) > 0.14 ? (mxBike.lean > 0 ? 1 : -1) : 0,
+    legOut: grounded && mxBike.speed > 4 && Math.abs(mxBike.lean) > 0.14 ? (mxBike.lean > 0 ? -1 : 1) : 0,
     tuck: mxBike.airborne ? 0.6 : 0,
     lean: mxBike.lean,
   }, dt);

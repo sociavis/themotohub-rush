@@ -8,9 +8,9 @@ export const MX_TRACKS: TrackDef[] = [
     // Flowing loop inspired by heightmap — wide right sweep, tight left return.
     // Beginner-friendly: tabletops and rollers, one easy double late.
     pts: [
-      [0, 0], [6, 6], [16, 12], [28, 14], [40, 10],
-      [48, 2], [50, -10], [44, -20], [32, -26],
-      [18, -24], [8, -18], [2, -10], [-4, -4],
+      [0, 0], [22, 4], [40, 12], [56, 10], [66, -2],
+      [64, -18], [52, -30], [34, -36], [14, -34],
+      [-4, -28], [-18, -18], [-22, -4], [-12, 4],
     ],
     obs: [
       { type: 'hill', at: 0.04, h: 1.4, len: 0.07 },        // roller off the start
@@ -30,8 +30,8 @@ export const MX_TRACKS: TrackDef[] = [
     envType: 'ice',
     // Long flowing sweeps — momentum track, low grip rewards smooth lines.
     pts: [
-      [0, 0], [16, 5], [34, 7], [50, 5], [60, -2],
-      [58, -14], [46, -22], [30, -24], [14, -20], [2, -14], [-4, -4],
+      [0, 0], [24, 6], [48, 8], [68, 2], [78, -14],
+      [70, -30], [50, -38], [28, -40], [4, -36], [-16, -26], [-20, -6],
     ],
     obs: [
       { type: 'tabletop', at: 0.08, h: 2.0, len: 0.13 },
@@ -50,9 +50,9 @@ export const MX_TRACKS: TrackDef[] = [
     envType: 'neon',
     // Street-circuit rhythm: doubles and rhythm lanes between the berms.
     pts: [
-      [0, 0], [20, 10], [44, 14], [64, 10], [76, -4],
-      [72, -22], [56, -34], [36, -40], [16, -36], [0, -44],
-      [-14, -30], [-18, -14], [-12, -4],
+      [0, 0], [26, 8], [50, 14], [72, 10], [84, -6],
+      [78, -24], [60, -34], [40, -32], [24, -40], [4, -44],
+      [-14, -36], [-22, -20], [-16, -4],
     ],
     obs: [
       { type: 'double', at: 0.06, h: 2.4, len: 0.12 },
@@ -70,11 +70,11 @@ export const MX_TRACKS: TrackDef[] = [
     name: 'VOLCANIC RIDGE',
     envColor: [255, 60, 20],
     envType: 'volcanic',
-    // Figure-8 crossover — the technical one. Big commitment doubles.
+    // Canyon switchbacks — the technical one. Big commitment doubles.
     pts: [
-      [0, 0], [16, 8], [32, 4], [40, -8], [32, -20],
-      [16, -16], [0, -24], [-16, -20], [-24, -8],
-      [-16, 4], [-8, 12], [0, 8],
+      [0, 0], [20, 8], [38, 6], [50, -6], [46, -22],
+      [30, -30], [12, -26], [-2, -34], [-20, -38],
+      [-36, -28], [-38, -10], [-26, 2], [-12, 4],
     ],
     obs: [
       { type: 'hill', at: 0.05, h: 2.8, len: 0.13 },
@@ -94,9 +94,9 @@ export const MX_TRACKS: TrackDef[] = [
     envType: 'jungle',
     // Tight S-curves with switchbacks — rhythm-heavy flow track.
     pts: [
-      [0, 0], [18, 4], [30, 14], [20, 24], [4, 20],
-      [-8, 10], [-4, -4], [12, -12], [28, -8], [36, -20],
-      [24, -30], [6, -26], [-6, -14],
+      [0, 0], [24, 8], [42, 20], [56, 34], [74, 32],
+      [84, 14], [76, -4], [58, -12], [44, -26], [26, -36],
+      [2, -34], [-14, -26], [-20, -8], [-10, 2],
     ],
     obs: [
       { type: 'rhythm', at: 0.04, h: 1.5, len: 0.12, count: 3 },
@@ -118,9 +118,9 @@ export const MX_TRACKS: TrackDef[] = [
     envType: 'stadium',
     // Supercross: everything tight, whoop wall, triple-sized double.
     pts: [
-      [0, 0], [24, 2], [40, 10], [44, 24], [32, 30],
-      [16, 24], [8, 14], [16, 4], [28, -4], [36, -16],
-      [24, -28], [8, -24], [-4, -14], [-8, -4],
+      [0, 0], [24, -4], [44, 2], [56, 16], [52, 32],
+      [38, 44], [16, 48], [-6, 42], [-20, 30], [-36, 24],
+      [-48, 10], [-46, -6], [-34, -16], [-16, -16], [-12, -2],
     ],
     obs: [
       { type: 'double', at: 0.04, h: 2.6, len: 0.13 },      // launch straight out of the gate

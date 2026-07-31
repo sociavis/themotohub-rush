@@ -60,46 +60,119 @@ export function makeGroundTexture(base: string, dark: string, speckle = 2600): T
 
 // Dirt racing surface with tire ruts running along V
 export function makeTrackTexture(base = '#71543a', rut = '#4c3826'): THREE.CanvasTexture {
-  const [c, x] = cvs(256, 256);
+  const S = 512;
+  const [c, x] = cvs(S, S);
   x.fillStyle = base;
-  x.fillRect(0, 0, 256, 256);
-  // noise
-  for (let i = 0; i < 1600; i++) {
-    x.globalAlpha = 0.05 + Math.random() * 0.16;
-    x.fillStyle = Math.random() > 0.5 ? shade(base, -(0.05 + Math.random() * 0.18)) : shade(base, 0.05 + Math.random() * 0.1);
-    const s = 1 + Math.random() * 3;
-    x.fillRect(Math.random() * 256, Math.random() * 256, s, s);
+  x.fillRect(0, 0, S, S);
+
+  // ── Multi-octave tonal noise: soft blotches → fine grain ──
+  // Low-frequency octaves are drawn on tiny canvases and upscaled with
+  // smoothing so the dirt gets natural large-scale moisture variation.
+  for (const [cell, alpha] of [[8, 0.22], [16, 0.16], [32, 0.12]] as [number, number][]) {
+    const [oc, ox] = cvs(cell, cell);
+    const img = ox.createImageData(cell, cell);
+    const bn = parseInt(base.slice(1), 16);
+    const br = (bn >> 16) & 255, bg = (bn >> 8) & 255, bb = bn & 255;
+    for (let i = 0; i < cell * cell; i++) {
+      const v = (Math.random() - 0.5) * 90;
+      img.data[i * 4] = Math.max(0, Math.min(255, br + v));
+      img.data[i * 4 + 1] = Math.max(0, Math.min(255, bg + v));
+      img.data[i * 4 + 2] = Math.max(0, Math.min(255, bb + v));
+      img.data[i * 4 + 3] = 255;
+    }
+    ox.putImageData(img, 0, 0);
+    x.globalAlpha = alpha;
+    x.imageSmoothingEnabled = true;
+    x.drawImage(oc, 0, 0, cell, cell, 0, 0, S, S);
   }
   x.globalAlpha = 1;
-  // twin ruts (u = across track)
+
+  // ── Fine grain speckle ──
+  for (let i = 0; i < 4200; i++) {
+    x.globalAlpha = 0.04 + Math.random() * 0.14;
+    x.fillStyle = Math.random() > 0.5 ? shade(base, -(0.06 + Math.random() * 0.2)) : shade(base, 0.05 + Math.random() * 0.12);
+    const sz = 1 + Math.random() * 2.5;
+    x.fillRect(Math.random() * S, Math.random() * S, sz, sz);
+  }
+  x.globalAlpha = 1;
+
+  // ── Longitudinal wear grooves (thin wavy streaks down the track) ──
+  for (let i = 0; i < 90; i++) {
+    const u0 = Math.random() * S;
+    const drift = (Math.random() - 0.5) * 30;
+    const light = Math.random() > 0.6;
+    x.strokeStyle = light ? shade(base, 0.08 + Math.random() * 0.08) : shade(base, -(0.08 + Math.random() * 0.12));
+    x.globalAlpha = 0.10 + Math.random() * 0.14;
+    x.lineWidth = 1 + Math.random() * 2;
+    x.beginPath();
+    x.moveTo(u0, -4);
+    x.bezierCurveTo(u0 + drift * 0.3, S * 0.33, u0 + drift * 0.7, S * 0.66, u0 + drift, S + 4);
+    x.stroke();
+  }
+  x.globalAlpha = 1;
+
+  // ── Twin wheel-line ruts with fake relief (shadow left, highlight right) ──
   for (const u of [0.32, 0.68]) {
-    const g = x.createLinearGradient((u - 0.09) * 256, 0, (u + 0.09) * 256, 0);
+    const cx = u * S, w = 0.115 * S;
+    // packed dark centre
+    const g = x.createLinearGradient(cx - w, 0, cx + w, 0);
     g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(0.5, rut);
+    g.addColorStop(0.45, rut);
+    g.addColorStop(0.55, rut);
     g.addColorStop(1, 'rgba(0,0,0,0)');
-    x.globalAlpha = 0.55;
+    x.globalAlpha = 0.6;
     x.fillStyle = g;
-    x.fillRect((u - 0.09) * 256, 0, 0.18 * 256, 256);
-  }
-  x.globalAlpha = 1;
-  // knobby tread marks in the ruts
-  x.fillStyle = 'rgba(30,20,12,0.35)';
-  for (const u of [0.32, 0.68]) {
-    for (let vScan = 0; vScan < 256; vScan += 7) {
-      x.fillRect(u * 256 - 7 + Math.random() * 6, vScan + Math.random() * 4, 8, 3);
+    x.fillRect(cx - w, 0, w * 2, S);
+    // relief: dark inner edge + sunlit outer lip
+    x.globalAlpha = 0.35;
+    x.fillStyle = 'rgba(20,12,6,1)';
+    x.fillRect(cx - w * 0.55, 0, 2.5, S);
+    x.globalAlpha = 0.3;
+    x.fillStyle = shade(base, 0.22);
+    x.fillRect(cx + w * 0.55, 0, 2, S);
+    x.globalAlpha = 1;
+    // knobby chatter marks (brake bumps) inside the rut
+    for (let v = 0; v < S; v += 6 + Math.random() * 6) {
+      const jx = cx - 8 + Math.random() * 16;
+      x.globalAlpha = 0.22 + Math.random() * 0.2;
+      x.fillStyle = 'rgba(24,15,8,1)';
+      x.fillRect(jx, v, 9 + Math.random() * 5, 2.5);
+      // lit lower edge of each bump
+      x.globalAlpha = 0.14;
+      x.fillStyle = shade(base, 0.25);
+      x.fillRect(jx, v + 2.5, 9, 1.2);
     }
   }
-  // lighter dry edges
-  const eg = x.createLinearGradient(0, 0, 256, 0);
-  eg.addColorStop(0, shade(base, 0.12));
-  eg.addColorStop(0.12, 'rgba(0,0,0,0)');
-  eg.addColorStop(0.88, 'rgba(0,0,0,0)');
-  eg.addColorStop(1, shade(base, 0.12));
-  x.globalAlpha = 0.5;
-  x.fillStyle = eg;
-  x.fillRect(0, 0, 256, 256);
   x.globalAlpha = 1;
-  return finalize(c);
+
+  // ── Scattered pebbles with light/shadow ──
+  for (let i = 0; i < 110; i++) {
+    const px = Math.random() * S, py = Math.random() * S;
+    const r = 1 + Math.random() * 2.4;
+    x.globalAlpha = 0.5 + Math.random() * 0.3;
+    x.fillStyle = shade(base, -(0.18 + Math.random() * 0.1));
+    x.beginPath(); x.ellipse(px + 0.7, py + 0.7, r, r * 0.8, 0, 0, 7); x.fill();
+    x.fillStyle = shade(base, 0.14 + Math.random() * 0.14);
+    x.beginPath(); x.ellipse(px, py, r * 0.8, r * 0.6, 0, 0, 7); x.fill();
+  }
+  x.globalAlpha = 1;
+
+  // ── Dry lighter edges + centre crown ──
+  const eg = x.createLinearGradient(0, 0, S, 0);
+  eg.addColorStop(0, shade(base, 0.14));
+  eg.addColorStop(0.1, 'rgba(0,0,0,0)');
+  eg.addColorStop(0.46, shade(base, 0.07));
+  eg.addColorStop(0.54, shade(base, 0.07));
+  eg.addColorStop(0.9, 'rgba(0,0,0,0)');
+  eg.addColorStop(1, shade(base, 0.14));
+  x.globalAlpha = 0.45;
+  x.fillStyle = eg;
+  x.fillRect(0, 0, S, S);
+  x.globalAlpha = 1;
+
+  const tex = finalize(c);
+  tex.anisotropy = 16;   // track is viewed at grazing angles — this is the big win
+  return tex;
 }
 
 export function makeCheckerTexture(n = 6): THREE.CanvasTexture {

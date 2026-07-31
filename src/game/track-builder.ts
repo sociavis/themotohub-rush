@@ -217,7 +217,20 @@ export function buildTrack(): void {
   let centX = 0, centZ = 0;
   for (const p of trk.pts) { centX += p[0]; centZ += p[1]; }
   centX /= trk.pts.length; centZ /= trk.pts.length;
-  const pts3d = trk.pts.map(p => new THREE.Vector3(p[0] - centX, 0, p[1] - centZ));
+  // Chaikin corner-cutting (×2) rounds every corner before the spline sees
+  // it — kills curvature spikes that made steering jerky on tight layouts
+  let poly: [number, number][] = trk.pts.map(p => [p[0] - centX, p[1] - centZ]);
+  for (let it = 0; it < 2; it++) {
+    const out: [number, number][] = [];
+    const n = poly.length;
+    for (let i = 0; i < n; i++) {
+      const a = poly[i], b = poly[(i + 1) % n];
+      out.push([0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]]);
+      out.push([0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]]);
+    }
+    poly = out;
+  }
+  const pts3d = poly.map(p => new THREE.Vector3(p[0], 0, p[1]));
   mxSpline = new THREE.CatmullRomCurve3(pts3d, true, 'chordal');
   mxSplineLen = mxSpline.getLength();
   buildTrackLUT();
@@ -377,7 +390,7 @@ export function buildTrack(): void {
   const bannerW = TRACK_W * 2 + 1.2;
   const banner = new THREE.Mesh(
     new THREE.PlaneGeometry(bannerW, 0.55),
-    new THREE.MeshStandardMaterial({ map: makeBannerTexture('SOCIA MX'), side: THREE.DoubleSide, roughness: 0.8 }),
+    new THREE.MeshStandardMaterial({ map: makeBannerTexture('THEMOTOHUB RUSH', '#c1272d'), side: THREE.DoubleSide, roughness: 0.8 }),
   );
   banner.position.set(0, 3.22, 0);
   gate.add(banner);
@@ -631,7 +644,7 @@ function buildEnvironment(trk: TrackDef): void {
       bush.position.set(x, 0.15, z);
       addProp(bush, false);
     });
-    makeSideBanners(6, 'SOCIA VISUAL', '#e33a1e', '#ffffff');
+    makeSideBanners(6, 'THEMOTOHUB', '#c1272d', '#ffffff');
   } else if (trk.envType === 'ice') {
     // Alpine: snowy pines + mountain backdrop
     ring(18, 12, 44, (x, z) => {
@@ -722,7 +735,7 @@ function buildEnvironment(trk: TrackDef): void {
     ring(4, TRACK_W * 5, TRACK_W * 7, (x, z) => {
       addProp(makeFloodTower(x, z, lit++ < 2), false);
     });
-    makeSideBanners(10, 'SOCIA MX', '#e33a1e', '#ffffff');
+    makeSideBanners(10, 'RUSH', '#c1272d', '#ffffff');
   }
 }
 
