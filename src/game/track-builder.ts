@@ -801,51 +801,53 @@ function buildEnvironment(trk: TrackDef): void {
 function setAtmosphere(trk: TrackDef): void {
   if (trk.envType === 'desert') {
     applyAtmosphere({
-      skyTop: 0x3f86d4, skyHorizon: 0xf2d5a0, fogColor: 0xe3cba0, fogDensity: 0.0032,
-      sunColor: 0xfff1d6, sunIntensity: 2.4, sunPos: [55, 85, 25],
-      hemiSky: 0xbcd7f0, hemiGround: 0xc9a06a, hemiIntensity: 0.85,
+      skyTop: 0x3f86d4, skyHorizon: 0xf2d5a0, fogColor: 0xe3cba0, fogDensity: 0.0030,
+      sunColor: 0xfff1d6, sunIntensity: 2.6, sunPos: [55, 85, 25],
+      hemiSky: 0xbcd7f0, hemiGround: 0xc9a06a, hemiIntensity: 0.95,
       groundKey: 'desert', groundBase: '#c9a06a', groundDark: '#a8814e',
-      clouds: true, sunDisc: true,
+      clouds: true, sunDisc: true, exposure: 1.12,
     });
   } else if (trk.envType === 'ice') {
     applyAtmosphere({
-      skyTop: 0x6aa4dc, skyHorizon: 0xe8eef4, fogColor: 0xdce8f2, fogDensity: 0.004,
-      sunColor: 0xeef4ff, sunIntensity: 1.9, sunPos: [40, 60, 50],
-      hemiSky: 0xcfe0f2, hemiGround: 0xdde6ee, hemiIntensity: 0.9,
+      skyTop: 0x6aa4dc, skyHorizon: 0xe8eef4, fogColor: 0xdce8f2, fogDensity: 0.0036,
+      sunColor: 0xeef4ff, sunIntensity: 2.1, sunPos: [40, 60, 50],
+      hemiSky: 0xcfe0f2, hemiGround: 0xdde6ee, hemiIntensity: 1.0,
       groundKey: 'snow', groundBase: '#e8edf2', groundDark: '#c8d4de',
-      clouds: true, sunDisc: true,
+      clouds: true, sunDisc: true, exposure: 1.1,
     });
   } else if (trk.envType === 'neon') {
     applyAtmosphere({
-      skyTop: 0x040713, skyHorizon: 0x3a2c46, fogColor: 0x0c0e18, fogDensity: 0.0045,
-      sunColor: 0x8ea6d8, sunIntensity: 0.5, sunPos: [-40, 70, -30],
-      hemiSky: 0x2a3450, hemiGround: 0x1a1410, hemiIntensity: 0.5,
-      groundKey: 'nightlot', groundBase: '#4a4438', groundDark: '#38332a',
-      clouds: false, sunDisc: false, exposure: 1.15,
+      // hazy artificial indoor-stadium wash: overhead floodlight white,
+      // milky haze, light-pollution glow at the horizon
+      skyTop: 0x131a2c, skyHorizon: 0x66688a, fogColor: 0x454b5e, fogDensity: 0.0052,
+      sunColor: 0xf4f7ff, sunIntensity: 2.0, sunPos: [8, 95, 12],
+      hemiSky: 0x7d86a4, hemiGround: 0x453d33, hemiIntensity: 1.05,
+      groundKey: 'nightlot', groundBase: '#5b5546', groundDark: '#454034',
+      clouds: false, sunDisc: false, exposure: 1.32,
     });
   } else if (trk.envType === 'volcanic') {
     applyAtmosphere({
-      skyTop: 0x2a1a2e, skyHorizon: 0xd97a36, fogColor: 0x66392a, fogDensity: 0.0042,
-      sunColor: 0xff9a5e, sunIntensity: 1.5, sunPos: [-60, 22, 40],
-      hemiSky: 0x6a4458, hemiGround: 0x53392e, hemiIntensity: 0.6,
-      groundKey: 'volcanic', groundBase: '#5c4438', groundDark: '#44322a',
-      clouds: false, sunDisc: true,
+      skyTop: 0x3a2440, skyHorizon: 0xe89050, fogColor: 0x7c4c34, fogDensity: 0.0032,
+      sunColor: 0xffa868, sunIntensity: 2.3, sunPos: [-60, 30, 40],
+      hemiSky: 0x8a5a6c, hemiGround: 0x64463a, hemiIntensity: 0.95,
+      groundKey: 'volcanic', groundBase: '#6a5040', groundDark: '#503a30',
+      clouds: false, sunDisc: true, exposure: 1.18,
     });
   } else if (trk.envType === 'jungle') {
     applyAtmosphere({
-      skyTop: 0x6fb0dd, skyHorizon: 0xd8e8c4, fogColor: 0xc4d8b4, fogDensity: 0.0058,
-      sunColor: 0xfff4cc, sunIntensity: 2.0, sunPos: [30, 70, 45],
-      hemiSky: 0xc2dcc8, hemiGround: 0x4c6b35, hemiIntensity: 0.9,
+      skyTop: 0x6fb0dd, skyHorizon: 0xd8e8c4, fogColor: 0xc4d8b4, fogDensity: 0.0050,
+      sunColor: 0xfff4cc, sunIntensity: 2.2, sunPos: [30, 70, 45],
+      hemiSky: 0xc2dcc8, hemiGround: 0x4c6b35, hemiIntensity: 1.0,
       groundKey: 'grass', groundBase: '#5d7a3c', groundDark: '#48632e',
-      clouds: true, sunDisc: true,
+      clouds: true, sunDisc: true, exposure: 1.1,
     });
   } else if (trk.envType === 'stadium') {
     applyAtmosphere({
-      skyTop: 0x05070f, skyHorizon: 0x1c2438, fogColor: 0x0b0e18, fogDensity: 0.0038,
-      sunColor: 0xbccae8, sunIntensity: 0.65, sunPos: [30, 80, -40],
-      hemiSky: 0x323c58, hemiGround: 0x241a12, hemiIntensity: 0.55,
+      skyTop: 0x0a0f1e, skyHorizon: 0x3c4460, fogColor: 0x272d40, fogDensity: 0.0040,
+      sunColor: 0xe8eeff, sunIntensity: 1.7, sunPos: [20, 92, -25],
+      hemiSky: 0x59627e, hemiGround: 0x362a1e, hemiIntensity: 0.95,
       groundKey: 'stadium', groundBase: '#6e5138', groundDark: '#543d29',
-      clouds: false, sunDisc: false, exposure: 1.12,
+      clouds: false, sunDisc: false, exposure: 1.28,
     });
   }
 }
