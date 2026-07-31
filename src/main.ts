@@ -8,7 +8,7 @@ import { mxBike, bikeGroup, resetBike, updateSuspension, spinWheels, initHeroBik
 import { setRiderNumber } from './game/bike-glb';
 import {
   mxTrackIdx, mxSpline, mxSplineLen, mxCPMeshes, s4,
-  buildTrack, setVis, getTrackHeight, getBerm, nextTrack, setTrackIdx,
+  buildTrack, setVis, getTrackHeight, getBerm, getBermRise, nextTrack, setTrackIdx,
   dustTrail, tireTrail, mxRoostParts, mxAmbientParts,
   updateDustTrail, updateTireTrail, updateRoostParticles, updateAmbientParticles,
 } from './game/track-builder';
@@ -385,9 +385,12 @@ function updateMX(t: number): void {
   const leanTarget = corneringLean + steerIn * 0.3 * speedLeanFactor + mxBike.latVel * 0.12;
   mxBike.lean = lerp(mxBike.lean, Math.max(-1, Math.min(1, leanTarget)), 0.10);
 
-  // berm banking roll (visual): the bike rides the bowl, rolled into the bank
-  const bankTarget = onBerm ? -bermForce * 0.7 : 0;
-  mxBike.bank = lerp(mxBike.bank, bankTarget, 0.09);
+  // banking roll from the real surface slope under the bike
+  const du = 0.15;
+  const riseL = getBermRise(mxBike.t, mxBike.lat * 0.8 + du);
+  const riseR = getBermRise(mxBike.t, mxBike.lat * 0.8 - du);
+  const bankSlope = (riseL - riseR) / (2 * du * TRACK_W);
+  mxBike.bank = lerp(mxBike.bank, -Math.atan(bankSlope) * 0.9, 0.12);
 
   // ═══ DRIVETRAIN — 3-speed box, rpm drives torque + engine audio ═══
   const braking = arrowDown && mxTimer.running && !mxBike.airborne;
@@ -562,14 +565,15 @@ function updateMX(t: number): void {
   // rate. The bike leaves the ground exactly when its ballistic path clears
   // the terrain next frame — crests launch naturally (bigger speed = bigger
   // air), ledges drop away, whoops skim at speed and ride at low speed.
-  const trackH = getTrackHeight(mxBike.t);
+  const uBike = mxBike.lat * 0.8;    // bike's cross-track position in mesh units
+  const trackH = getTrackHeight(mxBike.t) + getBermRise(mxBike.t, uBike);
   mxGroundSlope = groundSlopeAt(mxBike.t);
   if (!mxBike.airborne) {
     const vyNow = (trackH - mxBike.hOff) / dt;
     mxBike.vy = vyNow;
     mxBike.hOff = trackH;
     const tNext = mxBike.t + (mxBike.speed * dt) / Math.max(mxSplineLen, 1);
-    const terrainNext = getTrackHeight(tNext);
+    const terrainNext = getTrackHeight(tNext) + getBermRise(tNext, uBike);
     const ballisticNext = trackH + (mxBike.vy - GRAV * dt) * dt;
     if (ballisticNext > terrainNext + 0.015 && mxBike.speed > 4 && mxTimer.running) {
       mxBike.airborne = true;

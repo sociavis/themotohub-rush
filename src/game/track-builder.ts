@@ -165,8 +165,22 @@ export function getTrackHeight(tParam: number): number {
 }
 
 export function getBerm(tParam: number): number {
-  const idx = Math.round(tParam * TRACK_LUT_RES);
+  const tw = ((tParam % 1) + 1) % 1;
+  const idx = Math.round(tw * TRACK_LUT_RES);
   return _bermLUT[Math.min(idx, TRACK_LUT_RES)];
+}
+
+// Banked-corner surface rise. Berms are carved into the track itself as
+// superelevation: the outer half of the surface cups upward (quadratic bowl).
+// u is the cross-track position, -1 (right edge) .. +1 (left edge).
+export const BERM_H = 1.25;
+export function getBermRise(tParam: number, u: number): number {
+  const b = getBerm(tParam);
+  if (b === 0) return 0;
+  const side = Math.sign(b);
+  const mag = Math.min(1, Math.abs(b) / 0.4);
+  const x = Math.max(0, Math.min(1, u * side));
+  return mag * BERM_H * x * x;
 }
 
 // ── Per-environment styling ──
@@ -253,21 +267,30 @@ export function buildTrack(): void {
     const norm = new THREE.Vector3(-tan.z, 0, tan.x);
     const h = getTrackHeight(tP);
     tangents.push(tan); normals.push(norm); centers.push(new THREE.Vector3(pt.x, h, pt.z));
-    leftPts.push(new THREE.Vector3(pt.x + norm.x * TRACK_W, h, pt.z + norm.z * TRACK_W));
-    rightPts.push(new THREE.Vector3(pt.x - norm.x * TRACK_W, h, pt.z - norm.z * TRACK_W));
+    leftPts.push(new THREE.Vector3(pt.x + norm.x * TRACK_W, h + getBermRise(tP, 1), pt.z + norm.z * TRACK_W));
+    rightPts.push(new THREE.Vector3(pt.x - norm.x * TRACK_W, h + getBermRise(tP, -1), pt.z - norm.z * TRACK_W));
   }
 
-  // ── Racing surface (opaque dirt with ruts) ──
+  // ── Racing surface: 4 columns across so banked corners read as bowls ──
+  const COLS = [1, 0.33, -0.33, -1];   // u across the track (left → right)
   const sv: number[] = [], si: number[] = [], suv: number[] = [];
   const vRepeat = mxSplineLen / 5;
   for (let i = 0; i <= RES; i++) {
-    sv.push(leftPts[i].x, leftPts[i].y + 0.02, leftPts[i].z);
-    sv.push(rightPts[i].x, rightPts[i].y + 0.02, rightPts[i].z);
-    suv.push(0, (i / RES) * vRepeat, 1, (i / RES) * vRepeat);
+    const tP = i / RES;
+    for (const u of COLS) {
+      const px = centers[i].x + normals[i].x * TRACK_W * u;
+      const pz = centers[i].z + normals[i].z * TRACK_W * u;
+      const py = centers[i].y + getBermRise(tP, u) + 0.02;
+      sv.push(px, py, pz);
+      suv.push((1 - u) / 2, tP * vRepeat);
+    }
   }
+  const C = COLS.length;
   for (let i = 0; i < RES; i++) {
-    const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
-    si.push(a, b, c, b, d, c);
+    for (let c2 = 0; c2 < C - 1; c2++) {
+      const a = i * C + c2, b = a + 1, c3 = (i + 1) * C + c2, d = c3 + 1;
+      si.push(a, b, c3, b, d, c3);
+    }
   }
   const sg = new THREE.BufferGeometry();
   sg.setAttribute('position', new THREE.Float32BufferAttribute(sv, 3));
@@ -307,46 +330,18 @@ export function buildTrack(): void {
     s4.add(apron); mxTrackMeshes.push(apron);
   }
 
-  // ── Berms (banked dirt walls) ──
+  // ── Berm markers: tire stacks at entry/exit (bank itself is now carved
+  // into the track surface as superelevation) ──
   for (const ob of trk.obs) {
     if (ob.type !== 'berm') continue;
-    const w = ob.len || 0.06; const bermSegs = 20;
-    const bermVerts: number[] = [], bermIdx: number[] = [], bermUv: number[] = [];
-    for (let i = 0; i <= bermSegs; i++) {
-      const tP = ob.at + i / bermSegs * w;
-      const pt = mxSpline.getPointAt(tP);
-      const tan = mxSpline.getTangentAt(tP).normalize();
-      const norm = new THREE.Vector3(-tan.z, 0, tan.x);
-      const offset = (ob.side || 0) > 0 ? TRACK_W : -TRACK_W;
-      const bankH = 1.5 * Math.sin(i / bermSegs * Math.PI);
-      const h = getTrackHeight(tP);
-      bermVerts.push(pt.x + norm.x * offset * 0.85, h + 0.02, pt.z + norm.z * offset * 0.85);
-      bermVerts.push(pt.x + norm.x * offset * 1.35, h + bankH, pt.z + norm.z * offset * 1.35);
-      bermUv.push(0, i * 0.5, 1, i * 0.5);
-    }
-    for (let i = 0; i < bermSegs; i++) {
-      const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
-      bermIdx.push(a, b, c, b, d, c);
-    }
-    const bermGeo = new THREE.BufferGeometry();
-    bermGeo.setAttribute('position', new THREE.Float32BufferAttribute(bermVerts, 3));
-    bermGeo.setAttribute('uv', new THREE.Float32BufferAttribute(bermUv, 2));
-    bermGeo.setIndex(bermIdx);
-    bermGeo.computeVertexNormals();
-    const bermMesh = new THREE.Mesh(bermGeo, new THREE.MeshStandardMaterial({
-      map: trackTex(trk.envType), color: 0xbfae98, roughness: 1, side: THREE.DoubleSide,
-    }));
-    bermMesh.receiveShadow = true;
-    bermMesh.castShadow = true;
-    s4.add(bermMesh); mxTrackMeshes.push(bermMesh);
-
+    const w = ob.len || 0.06;
     // tire stacks marking the berm entry + exit
     for (const tEnd of [ob.at - 0.005, ob.at + w + 0.005]) {
       const pt = mxSpline.getPointAt((tEnd + 1) % 1);
       const tan = mxSpline.getTangentAt((tEnd + 1) % 1).normalize();
       const norm = new THREE.Vector3(-tan.z, 0, tan.x);
       const offset = (ob.side || 0) > 0 ? TRACK_W : -TRACK_W;
-      const h = getTrackHeight((tEnd + 1) % 1);
+      const h = getTrackHeight((tEnd + 1) % 1) + getBermRise((tEnd + 1) % 1, (ob.side || 0) > 0 ? 1 : -1);
       const bx = pt.x + norm.x * offset * 1.25, bz = pt.z + norm.z * offset * 1.25;
       for (let s = 0; s < 3; s++) {
         const tireM = new THREE.Mesh(
