@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { url } from './base-url';
 
 // ═══════════════════════════════════════════════════════════════
 //  CRF450 GLB rig — rigged Honda CRF450 model used as the hero
@@ -407,7 +408,7 @@ export function loadGlbBike(): Promise<GlbBikeRig | null> {
   if (loading) return loading;
   loading = new Promise((resolve) => {
     new GLTFLoader().load(
-      '/models/crf450.glb',
+      url('models/crf450.glb'),
       (gltf) => {
         try {
           cached = buildRig(gltf.scene as unknown as THREE.Group);

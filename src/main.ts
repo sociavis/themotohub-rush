@@ -34,6 +34,7 @@ import { showFullShop, showFullProfile, showFullAchievements, hideFullScreen } f
 // ── Embed mode (TheMotoHub / iframe hosting) ──
 import { IS_EMBED, postToHost, initHostBridge } from './game/host-bridge';
 import { storeGet, storeSet, storeRemove } from './game/safe-storage';
+import { url as gameUrl } from './game/base-url';
 export { IS_EMBED };
 if (IS_EMBED) document.body.classList.add('embed');
 initHostBridge();
@@ -776,7 +777,11 @@ function updateMX(t: number): void {
 }
 
 // ── Initialize ──
+let gameStarted = false;
+
 function startGame(): void {
+  if (gameStarted) return;   // watchdog and the normal path can race
+  gameStarted = true;
   // Merge server-side progress now that auth is complete (checkSession ran in welcome screen)
   if (isLoggedIn()) {
     mergeServerAchievements(getServerAchievements());
@@ -796,7 +801,7 @@ function startGame(): void {
       });
       const token = getToken();
       if (token) {
-        navigator.sendBeacon('/api/user/save-progress-beacon',
+        navigator.sendBeacon(gameUrl('api/user/save-progress-beacon'),
           new Blob([JSON.stringify({ token, ...JSON.parse(data) })], { type: 'application/json' }));
       }
     };
@@ -920,6 +925,19 @@ function init(): void {
 
   // Loading screen → welcome screen → game start
   startLoading(startGame);
+
+  // Last-resort watchdog: whatever goes wrong upstream (stalled auth, a
+  // throw in the boot chain, blocked storage in a WebView), the rider ends
+  // up in the game rather than staring at a black screen. startGame() is
+  // idempotent, so this is a no-op on a healthy boot.
+  setTimeout(() => {
+    if (!gameStarted) {
+      console.warn('[boot] watchdog fired — forcing game start');
+      document.getElementById('loadingScreen')?.classList.remove('visible');
+      document.getElementById('welcomeScreen')?.classList.remove('visible');
+      startGame();
+    }
+  }, 12000);
 }
 
 init();

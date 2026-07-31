@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { url } from './base-url';
 
 // ═══════════════════════════════════════════════════════════════
 //  GLB rider — "Low-poly Motocross Character (rigged)" by XHeheX
@@ -327,7 +328,7 @@ export function loadGlbRider(): Promise<RiderRig | null> {
   if (loading) return loading;
   loading = new Promise((resolve) => {
     new GLTFLoader().load(
-      '/models/rider.glb',
+      url('models/rider.glb'),
       (gltf) => {
         try {
           cached = buildRig(gltf.scene as unknown as THREE.Group);

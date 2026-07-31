@@ -1,4 +1,5 @@
 import { storeGet, storeSet, storeRemove } from './safe-storage';
+import { apiBase } from './base-url';
 export interface UserProfile {
   id: number;
   username: string;
@@ -22,9 +23,7 @@ export function getUserBestTimes(): Record<string, number> { return userBestTime
 export function getServerAchievements(): string { return serverAchievements; }
 export function getServerUpgrades(): string { return serverUpgrades; }
 
-function getApiBase(): string {
-  return '/api';
-}
+function getApiBase(): string { return apiBase(); }
 
 async function apiFetch(url: string, opts: RequestInit = {}): Promise<Response> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(opts.headers as Record<string, string> || {}) };

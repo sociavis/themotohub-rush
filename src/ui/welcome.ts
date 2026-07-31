@@ -25,7 +25,34 @@ const COUNTRIES = [
 
 let onReady: (() => void) | null = null;
 
+// Never let a slow/hanging network call strand the boot. Embedded in a
+// WebView an auth request can stall indefinitely; without this the loading
+// screen hides and the game never starts — a black screen inside the app.
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    let done = false;
+    const t = setTimeout(() => {
+      if (done) return;
+      done = true;
+      console.warn(`[boot] auth timed out after ${ms}ms — continuing`);
+      resolve(fallback);
+    }, ms);
+    p.then((v) => { if (!done) { done = true; clearTimeout(t); resolve(v); } })
+     .catch((e) => { if (!done) { done = true; clearTimeout(t); console.warn('[boot] auth failed', e); resolve(fallback); } });
+  });
+}
+
 export async function showWelcomeScreen(startGame: () => void): Promise<void> {
+  // Boot must ALWAYS reach the game — any failure below falls through to it.
+  try {
+    await runWelcome(startGame);
+  } catch (e) {
+    console.warn('[boot] welcome failed, starting anyway', e);
+    startGame();
+  }
+}
+
+async function runWelcome(startGame: () => void): Promise<void> {
   onReady = startGame;
   const ws = document.getElementById('welcomeScreen')!;
 
@@ -34,7 +61,12 @@ export async function showWelcomeScreen(startGame: () => void): Promise<void> {
   const qp = new URLSearchParams(location.search);
   const hostToken = getUrlHostToken();
   if (hostToken) {
-    if (await tryHostLogin(hostToken)) {
+    if (await withTimeout(tryHostLogin(hostToken), 6000, false)) {
+      startGame();
+      return;
+    }
+    // SSO failed or timed out — an embedded rider still gets to play
+    if (qp.has('embed')) {
       startGame();
       return;
     }
@@ -57,7 +89,7 @@ export async function showWelcomeScreen(startGame: () => void): Promise<void> {
     return;
   }
 
-  const hasSession = await checkSession();
+  const hasSession = await withTimeout(checkSession(), 6000, false);
 
   // Embedded hosts can skip the login screen entirely. Also: if host SSO
   // failed and there's no session to fall back on, never strand an embedded

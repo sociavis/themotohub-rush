@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { url } from './base-url';
 
 // ═══════════════════════════════════════════════════════════════
 //  Trackside prop library — "low poly Motocross Assets" by
@@ -24,7 +25,7 @@ export function onMxPropsLoaded(fn: () => void): void {
 export function loadMxProps(): void {
   if (loading) return;
   loading = new Promise((resolve) => {
-    new GLTFLoader().load('/models/mx-props.glb', (gltf) => {
+    new GLTFLoader().load(url('models/mx-props.glb'), (gltf) => {
       try {
         const scene = gltf.scene;
         scene.updateMatrixWorld(true);

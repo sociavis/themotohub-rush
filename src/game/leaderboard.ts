@@ -1,4 +1,5 @@
 import { getToken } from './auth';
+import { apiBase } from './base-url';
 
 export interface LeaderboardEntry {
   rank: number;
@@ -26,7 +27,7 @@ export interface TrackLeaderboard {
 
 const cache: Record<string, TrackLeaderboard> = {};
 
-function getApiBase(): string { return '/api'; }
+function getApiBase(): string { return apiBase(); }
 
 function authHeaders(): Record<string, string> {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
