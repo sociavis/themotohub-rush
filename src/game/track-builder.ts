@@ -236,6 +236,9 @@ export function buildTrack(): void {
   buildTrackLUT();
   trackSamples = [];
   for (let i = 0; i < 140; i++) trackSamples.push(mxSpline.getPointAt(i / 140));
+  trackR = 0;
+  for (const sp of trackSamples) trackR = Math.max(trackR, Math.hypot(sp.x, sp.z));
+  trackR += TRACK_W;
   const t0pt = mxSpline.getPointAt(0);
   const t0tan = mxSpline.getTangentAt(0).normalize();
   startZone.set(t0pt.x - t0tan.x * 5, 0, t0pt.z - t0tan.z * 5);
@@ -452,6 +455,8 @@ function stdMat(color: number, roughness = 0.9, metalness = 0): THREE.MeshStanda
 
 // Sampled spline points so props never land on the racing line
 let trackSamples: THREE.Vector3[] = [];
+// Bounding radius of the current layout — horizon props stay beyond this
+let trackR = 60;
 // Zone behind the start line where the chase camera sits at the gate drop
 const startZone = new THREE.Vector3();
 
@@ -474,6 +479,16 @@ function ring(count: number, minD: number, maxD: number, fn: (x: number, z: numb
       const x = Math.cos(ang) * dist, z = Math.sin(ang) * dist;
       if (farFromTrack(x, z, margin)) { fn(x, z, i); break; }
     }
+  }
+}
+
+// Horizon-scale scenery (mesas, mountains, towers): placed BEYOND the track's
+// bounding radius so big silhouettes never occlude the racing line.
+function horizonRing(count: number, gapMin: number, gapMax: number, fn: (x: number, z: number, i: number) => void): void {
+  for (let i = 0; i < count; i++) {
+    const ang = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+    const dist = trackR + gapMin + Math.random() * (gapMax - gapMin);
+    fn(Math.cos(ang) * dist, Math.sin(ang) * dist, i);
   }
 }
 
@@ -607,7 +622,7 @@ function makeSideBanners(count: number, text: string, bg: string, fg: string): v
 function buildEnvironment(trk: TrackDef): void {
   if (trk.envType === 'desert') {
     // Mesas on the horizon
-    ring(9, 46, 70, (x, z) => {
+    horizonRing(9, 22, 48, (x, z) => {
       const mh = 4 + Math.random() * 7, mw = 8 + Math.random() * 14;
       const mesa = new THREE.Mesh(new THREE.CylinderGeometry(mw * 0.55, mw, mh, 7), stdMat(0xb0714a, 0.95));
       mesa.position.set(x, mh / 2 - 0.4, z);
@@ -652,7 +667,7 @@ function buildEnvironment(trk: TrackDef): void {
       tree.position.set(x, 0, z);
       addProp(tree);
     });
-    ring(8, 50, 80, (x, z) => {
+    horizonRing(8, 24, 50, (x, z) => {
       const mh = 12 + Math.random() * 16;
       const mtn = new THREE.Mesh(new THREE.ConeGeometry(mh * 0.75, mh, 7), stdMat(0xdde6ee, 0.95));
       mtn.position.set(x, mh / 2 - 1, z);
@@ -666,7 +681,7 @@ function buildEnvironment(trk: TrackDef): void {
     makeSideBanners(6, 'GLACIER GP', '#1e3a5c', '#ffffff');
   } else if (trk.envType === 'neon') {
     // Night city supercross — skyline silhouettes + floodlights
-    ring(22, 46, 85, (x, z) => {
+    horizonRing(22, 18, 55, (x, z) => {
       const bh = 8 + Math.random() * 26, bw = 4 + Math.random() * 7;
       const bld = new THREE.Mesh(
         new THREE.BoxGeometry(bw, bh, bw),
@@ -683,7 +698,7 @@ function buildEnvironment(trk: TrackDef): void {
     makeSideBanners(8, 'NIGHT SX', '#101726', '#ffb25e');
   } else if (trk.envType === 'volcanic') {
     // Dusk canyon — dark rock spires, glowing vents
-    ring(14, 30, 60, (x, z) => {
+    horizonRing(14, 14, 40, (x, z) => {
       const rh = 3 + Math.random() * 8, rr = 0.8 + Math.random() * 2;
       const spire = new THREE.Mesh(new THREE.ConeGeometry(rr, rh, 6), stdMat(0x453029, 0.95));
       spire.position.set(x, rh / 2 - 0.3, z);
@@ -697,7 +712,7 @@ function buildEnvironment(trk: TrackDef): void {
     });
     // Glow vents
     let vents = 0;
-    ring(6, 20, 40, (x, z) => {
+    ring(6, 12, 34, (x, z) => {
       const pool = new THREE.Mesh(new THREE.CircleGeometry(0.8 + Math.random() * 1.4, 14),
         new THREE.MeshStandardMaterial({ color: 0x201008, emissive: 0xff5a1e, emissiveIntensity: 1.8, roughness: 0.8 }));
       pool.rotation.x = -Math.PI / 2;
