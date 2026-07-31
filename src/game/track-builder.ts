@@ -294,6 +294,17 @@ export function buildTrack(): void {
   const pts3d = poly.map(p => new THREE.Vector3(p[0], 0, p[1]));
   mxSpline = new THREE.CatmullRomCurve3(pts3d, true, 'chordal');
   mxSplineLen = mxSpline.getLength();
+  // Berm banks always go on the OUTSIDE of the turn — resolve each berm's
+  // side from the spline's turn direction at its midpoint (left turn → lat+)
+  for (const ob of trk.obs) {
+    if (ob.type !== 'berm') continue;
+    const mid = ob.at + (ob.len || 0.06) / 2;
+    const d = 0.012;
+    const tA = mxSpline.getTangentAt(((mid - d) % 1 + 1) % 1).normalize();
+    const tB = mxSpline.getTangentAt(((mid + d) % 1 + 1) % 1).normalize();
+    const crossY = tA.z * tB.x - tA.x * tB.z;
+    ob.side = crossY >= 0 ? 1 : -1;
+  }
   buildTrackLUT();
   trackSamples = [];
   for (let i = 0; i < 140; i++) trackSamples.push(mxSpline.getPointAt(i / 140));
@@ -358,8 +369,8 @@ export function buildTrack(): void {
       const n = normals[i];
       const midY = Math.max(edge.y * 0.4, 0.02);
       av.push(edge.x, edge.y + 0.015, edge.z);
-      av.push(edge.x + n.x * 2.6 * side, midY, edge.z + n.z * 2.6 * side);
-      av.push(edge.x + n.x * (2.6 + 2 + edge.y * 1.6) * side, 0.02, edge.z + n.z * (2.6 + 2 + edge.y * 1.6) * side);
+      av.push(edge.x + n.x * 1.3 * side, midY, edge.z + n.z * 1.3 * side);
+      av.push(edge.x + n.x * (1.3 + 1.1 + edge.y * 1.1) * side, 0.02, edge.z + n.z * (1.3 + 1.1 + edge.y * 1.1) * side);
       auv.push(0, (i / RES) * vRepeat, 0.5, (i / RES) * vRepeat, 1, (i / RES) * vRepeat);
     }
     for (let i = 0; i < RES; i++) {

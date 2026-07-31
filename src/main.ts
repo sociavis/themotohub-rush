@@ -339,12 +339,16 @@ function updateMX(t: number): void {
   const inAir = mxBike.airborne;
 
   // -- grip budget (world m/s² of lateral capability) --
-  let gripMax = 20 * terrainFriction * getTireGrip();
+  let gripMax = 17.5 * terrainFriction * getTireGrip();
   if (onBerm) gripMax *= 2.3;
   const spinning = accelOn && !inAir && mxBike.speed > 0.5 && mxBike.speed < 5.5 && mxTimer.running;
   if (spinning) gripMax *= 0.75;
 
-  const cornerLoad = mxBike.speed * mxBike.speed * Math.abs(kappa);
+  // curvature of the bike's own line: inside lines arc tighter (more grip
+  // needed), outside lines arc gentler (carry speed, longer path)
+  const latWorldNow = mxBike.lat * TRACK_W * 0.8;
+  const kappaEff = kappa / Math.max(0.35, 1 + kappa * latWorldNow);
+  const cornerLoad = mxBike.speed * mxBike.speed * Math.abs(kappaEff);
   const gripLeft = Math.max(0, gripMax - cornerLoad);
 
   // -- lateral momentum steering (lat-units: world lateral / 2.4) --
@@ -426,8 +430,8 @@ function updateMX(t: number): void {
   } else {
     mxBike.speed = lerp(mxBike.speed, 0, mxBike.brake * dt * 0.06);
   }
-  // cornering scrub while leaned over (mild — washouts are the real cost)
-  mxBike.speed *= 1 - Math.abs(mxBike.lean) * 0.05 * dt;
+  // cornering scrub while leaned over (mild; a banked berm carries the load)
+  mxBike.speed *= 1 - Math.abs(mxBike.lean) * (onBerm ? 0.012 : 0.03) * dt;
 
   // Wheelie mechanics — a BALANCE GAME, not a held switch.
   // Entry: lean back hard on the gas with revs up (torque lofts the front).
@@ -479,8 +483,8 @@ function updateMX(t: number): void {
     if (isSoundOn()) sndWheelieEnd();
   }
 
-  // Off-track penalty
-  if (Math.abs(mxBike.lat) > 0.9) { mxBike.speed *= 0.96; mxTimer.clean = false; }
+  // Off-track penalty (the berm bank itself is rideable track)
+  if (Math.abs(mxBike.lat) > 0.9 && !onBerm) { mxBike.speed *= 0.96; mxTimer.clean = false; }
 
   // Move along spline — compensated for the bike's offset line so world
   // speed is true at the BIKE, not the centerline. Without this the bike is
