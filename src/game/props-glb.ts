@@ -29,15 +29,31 @@ export function loadMxProps(): void {
         const scene = gltf.scene;
         scene.updateMatrixWorld(true);
         const map = new Map<string, THREE.Object3D>();
-        // top-level prop groups live under the root chain; index anything
-        // with a real name and mesh content
+        // flattened GLB: parts are sibling meshes named "<prop>_N" — group
+        // them per prop into detached templates with world transforms baked
+        const parts = new Map<string, THREE.Mesh[]>();
         scene.traverse(o => {
-          if (!o.name || o.name.startsWith('Object_')) return;
-          let hasMesh = false;
-          o.traverse(c => { if ((c as THREE.Mesh).isMesh) hasMesh = true; });
-          const key = norm(o.name);
-          if (hasMesh && key && !map.has(key)) map.set(key, o);
+          const m = o as THREE.Mesh;
+          if (!m.isMesh || !m.name || m.name.startsWith('Object_')) return;
+          const key = norm(m.name.replace(/_\d+$/, ''));
+          if (!key) return;
+          if (!parts.has(key)) parts.set(key, []);
+          parts.get(key)!.push(m);
         });
+        for (const [key, list] of parts) {
+          const g = new THREE.Group();
+          for (const part of list) {
+            const pc = part.clone(true);
+            part.updateWorldMatrix(true, false);
+            part.matrixWorld.decompose(pc.position, pc.quaternion, pc.scale);
+            g.add(pc);
+          }
+          // recentre the group's parts on their shared centroid (XZ)
+          const bb = new THREE.Box3().setFromObject(g);
+          const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
+          for (const c of g.children) { c.position.x -= cx; c.position.z -= cz; }
+          map.set(key, g);
+        }
         // scale reference: the ambulance is ~2m tall in the real world
         const amb = map.get('ambulancia');
         if (amb) {
@@ -63,14 +79,6 @@ export function cloneMxProp(name: string, scaleMul = 1): THREE.Object3D | null {
   const clone = src.clone(true);
   const g = new THREE.Group();
   g.add(clone);
-  // neutralize the source's world transform, then apply library scale
-  clone.matrixAutoUpdate = true;
-  src.updateWorldMatrix(true, false);
-  clone.position.set(0, 0, 0);
-  clone.rotation.set(0, 0, 0);
-  clone.scale.set(1, 1, 1);
-  src.matrixWorld.decompose(clone.position, clone.quaternion, clone.scale);
-  clone.position.set(0, 0, 0);
   g.scale.setScalar(globalScale * scaleMul);
   // ground it
   g.updateMatrixWorld(true);

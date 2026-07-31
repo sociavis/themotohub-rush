@@ -236,9 +236,9 @@ function paintPlates(num: number): void {
     }
     ctx.putImageData(d, 0, 0);
   }
-  // cover the logo lettering on the front plate band (band itself is black)
-  ctx.fillStyle = '#0a0a0a';
-  ctx.fillRect(S * 0.545, S * 0.90, S * 0.125, S * 0.062);
+  // erase the band entirely — the front plate reads as one clean white face
+  ctx.fillStyle = '#f4f2ee';
+  ctx.fillRect(S * 0.352, S * 0.845, S * 0.30, S * 0.115);
   // draw the number on each plate
   const numTxt = String(Math.max(0, Math.min(999, Math.round(num))));
   for (const p of PLATE_SPOTS) {

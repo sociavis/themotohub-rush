@@ -30,13 +30,14 @@ export interface RiderRig {
   update: (pose: RiderPose, dt: number) => void;
   setJerseyColor: (c: THREE.Color) => void;
   setHeight: (h: number) => void;
+  setBodyShape: (shape: { legLen?: number; armLen?: number; footSize?: number }) => void;
 }
 
 // Rider height in game units (bike wheelbase 1.2 ≈ 1.48 m → 1.6 m rider ≈ 1.3)
 const RIDER_HEIGHT = 1.06;
 
 // Live-tunable fit offsets (rider calibration in debug-bike.html)
-export const RIDER_TUNE = { footUp: 0.055, footOut: 0, handUp: 0.035 };
+export const RIDER_TUNE = { footUp: 0.055, footOut: 0, handUp: 0.035, handOut: 0 };
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -228,6 +229,8 @@ function buildRig(scene: THREE.Group): RiderRig | null {
     const footRT = mounts.footR!.getWorldPosition(new THREE.Vector3());
     footLT.add(side.clone().multiplyScalar(RIDER_TUNE.footOut));
     footRT.add(side.clone().multiplyScalar(-RIDER_TUNE.footOut));
+    footLT.y += RIDER_TUNE.footUp;
+    footRT.y += RIDER_TUNE.footUp;
     if (cur.legOutL > 0.02) footLT.add(fwd.clone().multiplyScalar(cur.legOutL * 0.55)).add(side.clone().multiplyScalar(cur.legOutL * 0.25)).add(new THREE.Vector3(0, cur.legOutL * 0.1, 0));
     if (cur.legOutR > 0.02) footRT.add(fwd.clone().multiplyScalar(cur.legOutR * 0.55)).add(side.clone().multiplyScalar(-cur.legOutR * 0.25)).add(new THREE.Vector3(0, cur.legOutR * 0.1, 0));
     // knees bend forward, slightly out — pole kept tight so shins hug the bike
@@ -237,6 +240,10 @@ function buildRig(scene: THREE.Group): RiderRig | null {
     // Hands on grips — elbows out and up (attack style)
     const handLT = mounts.handL!.getWorldPosition(new THREE.Vector3());
     const handRT = mounts.handR!.getWorldPosition(new THREE.Vector3());
+    handLT.y += RIDER_TUNE.handUp;
+    handRT.y += RIDER_TUNE.handUp;
+    handLT.add(side.clone().multiplyScalar(RIDER_TUNE.handOut));
+    handRT.add(side.clone().multiplyScalar(-RIDER_TUNE.handOut));
     const elbowUp = 0.32 + cur.crouch * 0.2;
     solveLimb(armL, handLT, rootW.clone().add(side.clone().multiplyScalar(0.9)).add(new THREE.Vector3(0, elbowUp, 0)));
     solveLimb(armR, handRT, rootW.clone().add(side.clone().multiplyScalar(-0.9)).add(new THREE.Vector3(0, elbowUp, 0)));
@@ -260,18 +267,38 @@ function buildRig(scene: THREE.Group): RiderRig | null {
     update(lastPose, 1);
   };
 
-  // Live rescale (calibration): restore bind pose, rescale, re-measure the
-  // IK limbs at the new size, re-solve the current pose.
-  const setHeight = (h: number): void => {
+  // Restore bind pose → re-measure IK limbs → re-solve. Used by both the
+  // height rescale and body-shape changes.
+  const remeasure = (): void => {
     for (const [b, q] of restAll) b.quaternion.copy(q);
-    scene.scale.multiplyScalar(h / curHeight);
-    curHeight = h;
     scene.updateMatrixWorld(true);
     armL = makeLimb(bones.lArm, bones.lForeArm, bones.lHand);
     armR = makeLimb(bones.rArm, bones.rForeArm, bones.rHand);
     legL = makeLimb(bones.lUpLeg, bones.lLeg, bones.lFoot);
     legR = makeLimb(bones.rUpLeg, bones.rLeg, bones.rFoot);
     update(lastPose, 1);
+  };
+
+  const setHeight = (h: number): void => {
+    scene.scale.multiplyScalar(h / curHeight);
+    curHeight = h;
+    remeasure();
+  };
+
+  // Body proportions: bone scales cascade down the chain, so children get
+  // inverse-compensated (legs carry the feet, arms carry the hands).
+  const shape = { legLen: 1, armLen: 1, footSize: 1 };
+  const setBodyShape = (p: { legLen?: number; armLen?: number; footSize?: number }): void => {
+    Object.assign(shape, p);
+    bones.lUpLeg.scale.setScalar(shape.legLen);
+    bones.rUpLeg.scale.setScalar(shape.legLen);
+    bones.lFoot.scale.setScalar(shape.footSize / shape.legLen);
+    bones.rFoot.scale.setScalar(shape.footSize / shape.legLen);
+    bones.lArm.scale.setScalar(shape.armLen);
+    bones.rArm.scale.setScalar(shape.armLen);
+    bones.lHand.scale.setScalar(1 / shape.armLen);
+    bones.rHand.scale.setScalar(1 / shape.armLen);
+    remeasure();
   };
 
   const setJerseyColor = (c: THREE.Color): void => {
@@ -289,7 +316,7 @@ function buildRig(scene: THREE.Group): RiderRig | null {
     });
   };
 
-  return { root, attach, update, setJerseyColor, setHeight };
+  return { root, attach, update, setJerseyColor, setHeight, setBodyShape };
 }
 
 export function loadGlbRider(): Promise<RiderRig | null> {

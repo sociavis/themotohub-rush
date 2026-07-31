@@ -891,6 +891,7 @@ function placeMxProps(): void {
     if (!prop) return;
     prop.position.x = x;
     prop.position.z = z;
+    prop.position.y += terrainYAt(x, z);   // sit on the landscape
     prop.rotation.y = rotY;
     s4.add(prop);
     mxTrackMeshes.push(prop);

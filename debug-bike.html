@@ -98,16 +98,21 @@ let frames = 0;
 
 // ── rider calibration ──
 if (rider) {
-  const RC = { height: 1.06, mountY: 0.13, mountZ: -0.05, footUp: RIDER_TUNE.footUp, footOut: RIDER_TUNE.footOut, handUp: RIDER_TUNE.handUp };
+  // defaults read from the LIVE mount so the first slider touch never jumps
+  const RC = { height: 1.06, mountY: rider.root.position.y, mountZ: rider.root.position.z, footUp: RIDER_TUNE.footUp, footOut: RIDER_TUNE.footOut, handUp: RIDER_TUNE.handUp, handOut: RIDER_TUNE.handOut, legLen: 1, armLen: 1, footSize: 1 };
   const rdiv = document.createElement('div');
   rdiv.className = 'plate';
   rdiv.innerHTML = `<h3>RIDER FIT</h3>` + [
     ['height', 0.85, 1.35, 0.005],
-    ['mountY', -0.05, 0.30, 0.005],
-    ['mountZ', -0.25, 0.15, 0.005],
+    ['mountY', 0.15, 0.75, 0.005],
+    ['mountZ', -0.35, 0.15, 0.005],
     ['footUp', -0.02, 0.16, 0.005],
     ['footOut', -0.08, 0.14, 0.005],
     ['handUp', -0.06, 0.12, 0.005],
+    ['handOut', -0.08, 0.12, 0.005],
+    ['legLen', 0.7, 1.3, 0.01],
+    ['armLen', 0.7, 1.3, 0.01],
+    ['footSize', 0.6, 1.4, 0.01],
   ].map(([k, mn, mx, st]) =>
     `<label>${k} <span class="val" id="rv_${k}">${RC[k].toFixed(3)}</span>
       <input type="range" id="rs_${k}" min="${mn}" max="${mx}" step="${st}" value="${RC[k]}"></label>`
@@ -118,13 +123,14 @@ if (rider) {
   riderOut.style.cssText = 'width:100%;height:74px;background:#141210;color:#8f8;border:1px solid #3a342c;font-size:9px;margin-top:6px';
   rdiv.appendChild(riderOut);
   const updRiderOut = () => {
-    riderOut.value = JSON.stringify({ height: +RC.height.toFixed(3), mountY: +RC.mountY.toFixed(3), mountZ: +RC.mountZ.toFixed(3), footUp: +RC.footUp.toFixed(3), footOut: +RC.footOut.toFixed(3), handUp: +RC.handUp.toFixed(3) });
+    riderOut.value = JSON.stringify({ height: +RC.height.toFixed(3), mountY: +RC.mountY.toFixed(3), mountZ: +RC.mountZ.toFixed(3), footUp: +RC.footUp.toFixed(3), footOut: +RC.footOut.toFixed(3), handUp: +RC.handUp.toFixed(3), handOut: +RC.handOut.toFixed(3), legLen: +RC.legLen.toFixed(2), armLen: +RC.armLen.toFixed(2), footSize: +RC.footSize.toFixed(2) });
   };
   updRiderOut();
   const applyRider = (k, v) => {
     RC[k] = v;
     if (k === 'height') rider.setHeight(v);
     else if (k === 'mountY' || k === 'mountZ') rider.root.position.set(0, RC.mountY, RC.mountZ);
+    else if (k === 'legLen' || k === 'armLen' || k === 'footSize') rider.setBodyShape({ [k]: v });
     else { RIDER_TUNE[k] = v; }
     rider.update({ crouch: 0, back: 0, legOut: 0, tuck: 0, lean: 0 }, 1);
     document.getElementById('rv_' + k).textContent = v.toFixed(3);
