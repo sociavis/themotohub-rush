@@ -56,7 +56,7 @@ function renderProfile(): void {
   html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06)">`;
   html += `<div class="profile-row"><span>TIRES</span><span class="profile-val">LVL ${upgrades.tires}</span></div>`;
   html += `<div class="profile-row"><span>ENGINE</span><span class="profile-val">LVL ${upgrades.engine}</span></div>`;
-  html += `<div class="profile-row"><span>GEARBOX</span><span class="profile-val">LVL ${upgrades.gearbox}</span></div>`;
+  html += `<div class="profile-row"><span>GEARING</span><span class="profile-val">LVL ${upgrades.gearbox}</span></div>`;
   html += `<div class="profile-row"><span>SUSPENSION</span><span class="profile-val">LVL ${upgrades.suspension}</span></div>`;
   html += `</div>`;
 

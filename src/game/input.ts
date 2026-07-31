@@ -98,6 +98,13 @@ function setupTouchRacingControls(): void {
   };
   bindBtn(gas, 'throttle');
   bindBtn(brake, 'brake');
+
+  // ☰ toggles the full HUD during mobile races
+  const menuBtn = document.getElementById('tcMenu');
+  menuBtn?.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    document.body.classList.toggle('mob-hud-open');
+  }, { passive: false });
 }
 
 export const mob = matchMedia('(pointer:coarse)').matches;

@@ -379,6 +379,31 @@
   /* TOAST REWARD */
   .toast-reward{margin-left:8px;font-size:10px;letter-spacing:0.08em;font-weight:700}
 .touch-controls { display: none; }
+/* ── Mobile racing: minimal HUD — ☰ reveals the full UI ── */
+body.mob-racing .hud-corner, body.mob-racing .ach-tray, body.mob-racing .wm-logo,
+body.mob-racing .bottom-actions, body.mob-racing .bottom-bar,
+body.mob-racing .hud-panel.top-left, body.mob-racing .hud-panel.top-right,
+body.mob-racing .hud-panel.bottom-right {
+  display: none !important;
+}
+body.mob-racing.mob-hud-open .hud-panel.top-left,
+body.mob-racing.mob-hud-open .hud-panel.top-right,
+body.mob-racing.mob-hud-open .hud-panel.bottom-right,
+body.mob-racing.mob-hud-open .ach-tray,
+body.mob-racing.mob-hud-open .bottom-actions {
+  display: block !important;
+}
+body.mob-racing .hud-panel.bottom-left { font-size: 10px; opacity: 0.75; }
+.tc-menu {
+  right: 12px; top: 12px; width: 44px; height: 40px; font-size: 16px;
+  letter-spacing: 0; border-radius: 10px;
+}
+@media(pointer:coarse){
+  .ach-toast{ top: 10px; left: auto; right: 64px; transform: none;
+    font-size: 8px; padding: 4px 10px; gap: 6px;
+    animation: toastSlideM 2.2s ease-out forwards; }
+  @keyframes toastSlideM{0%{opacity:0;transform:translateY(-6px)}10%{opacity:0.85;transform:translateY(0)}80%{opacity:0.85}100%{opacity:0;transform:translateY(-6px)}}
+}
 body.mob-racing .touch-controls { display: block; }
 .tc-steer {
   position: fixed; left: 0; bottom: 0; width: 46vw; height: 60vh; z-index: 40;
@@ -470,6 +495,7 @@ body.mob-racing .touch-controls { display: block; }
 <div class="touch-controls" id="touchControls">
   <div class="tc-steer" id="tcSteer"><div class="tc-joy" id="tcJoy"><div class="tc-knob" id="tcKnob"></div></div></div>
   <div class="tc-btn tc-brake" id="tcBrake">BRAKE</div>
+  <div class="tc-btn tc-menu" id="tcMenu">☰</div>
   <div class="tc-btn tc-throttle" id="tcThrottle">GAS</div>
 </div>
 <div class="rotate-overlay" id="rotateOverlay">
