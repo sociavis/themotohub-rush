@@ -21,6 +21,24 @@ export function getBackUrl(): string | null {
   return b.startsWith('/') && !b.startsWith('//') ? b : null;
 }
 
+// Inside TheMotoHub's native shell the app is portrait-locked; the game
+// needs landscape. The Capacitor bridge is available to any page the
+// WebView loads, so lock it here rather than adding host-side per-route
+// logic. The app re-locks portrait when the rider returns.
+interface CapBridge {
+  isNativePlatform?: () => boolean;
+  Plugins?: { ScreenOrientation?: { lock: (o: { orientation: string }) => Promise<void> } };
+}
+
+export function lockLandscapeInApp(): void {
+  try {
+    const cap = (window as unknown as { Capacitor?: CapBridge }).Capacitor;
+    if (!cap?.isNativePlatform?.()) return;
+    cap.Plugins?.ScreenOrientation?.lock({ orientation: 'landscape' })
+      .catch(() => { /* best-effort — the rotate gate still guides the rider */ });
+  } catch { /* not in a native shell */ }
+}
+
 export function installBackButton(): void {
   const back = getBackUrl();
   if (!back) return;

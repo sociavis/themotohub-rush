@@ -32,13 +32,14 @@ import { showPostRace, hidePostRace } from './ui/post-race';
 import { showFullShop, showFullProfile, showFullAchievements, hideFullScreen } from './ui/full-screens';
 
 // ── Embed mode (TheMotoHub / iframe hosting) ──
-import { IS_EMBED, postToHost, initHostBridge, installBackButton } from './game/host-bridge';
+import { IS_EMBED, postToHost, initHostBridge, installBackButton, lockLandscapeInApp } from './game/host-bridge';
 import { storeGet, storeSet, storeRemove } from './game/safe-storage';
 import { url as gameUrl } from './game/base-url';
 export { IS_EMBED };
 if (IS_EMBED) document.body.classList.add('embed');
 initHostBridge();
 installBackButton();
+lockLandscapeInApp();
 
 // ── Game State ──
 type GameScreen = 'menu' | 'track-select' | 'racing' | 'post-race' | 'shop' | 'profile' | 'achievements';
