@@ -448,7 +448,6 @@ body.mob-racing .touch-controls { display: block; }
 .rotate-overlay.show { display: flex; }
 .rotate-overlay .ro-icon { width: 56px; height: 56px; animation: ro-tilt 1.6s ease-in-out infinite; }
 .rotate-overlay .ro-text { font-size: 16px; letter-spacing: 0.2em; text-transform: uppercase; }
-.rotate-overlay .ro-tap { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; margin-top: 18px; padding: 9px 18px; border: 1px solid currentColor; border-radius: 22px; opacity: 0.9; }
 .rotate-overlay .ro-sub { font-size: 11px; letter-spacing: 0.14em; opacity: 0.55; text-transform: uppercase; }
 @keyframes ro-tilt { 0%, 20% { transform: rotate(0deg); } 55%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(-90deg); } }
 </style>
@@ -505,8 +504,7 @@ body.mob-racing .touch-controls { display: block; }
 <div class="rotate-overlay" id="rotateOverlay">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="ro-icon"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/></svg>
   <div class="ro-text">Rotate your device</div>
-  <div class="ro-sub">Landscape recommended for racing</div>
-  <div class="ro-tap">Tap to play anyway</div>
+  <div class="ro-sub">Rotate to landscape to race</div>
 </div>
 <div class="cursor-dot" id="cdot"></div>
 <div class="cursor-ring" id="cring"></div>
