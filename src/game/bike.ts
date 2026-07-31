@@ -475,6 +475,7 @@ export function initHeroBike(): void {
       }
       bikeGroup.add(rig.root);
       if (pendingColor) rig.tintMats.forEach(m => m.color.copy(pendingColor!));
+      for (const [part, lvl] of Object.entries(pendingTiers)) rig.setPartLevel(part as BikePartKey, lvl);
     }
     if (rider) {
       riderRig = rider;
@@ -489,6 +490,14 @@ export function initHeroBike(): void {
 // Drive the rider's pose from gameplay (no-op until the rider loads)
 export function updateRiderPose(pose: RiderPose, dt: number): void {
   riderRig?.update(pose, dt);
+}
+
+// Upgrade tier tints (bronze/silver/gold) on the hero bike's parts
+import type { BikePartKey } from './bike-glb';
+const pendingTiers: Partial<Record<BikePartKey, number>> = {};
+export function setPartTier(part: BikePartKey, level: number): void {
+  pendingTiers[part] = level;
+  glbRig?.setPartLevel(part, level);
 }
 
 // Wheel spin for whichever model is active

@@ -9,7 +9,12 @@ import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 //  The procedural bike remains as instant-load fallback.
 // ═══════════════════════════════════════════════════════════════
 
+export type BikePartKey = 'tires' | 'engine' | 'gearbox' | 'suspension';
+
 export interface GlbBikeRig {
+  // per-part isolated materials (for garage highlight + upgrade tier tints)
+  partMats: Record<BikePartKey, THREE.MeshStandardMaterial[]>;
+  setPartLevel: (part: BikePartKey, level: number) => void;
   root: THREE.Group;          // normalized: wheelbase 1.2, tires at y=-0.35, +z forward
   fWheel: THREE.Bone | null;  // FRONT-WHEEL-DEF — spin about local axis
   rWheel: THREE.Bone | null;  // REAR-WHEEL-ROT
@@ -22,6 +27,60 @@ export interface GlbBikeRig {
 
 const WHEELBASE = 1.2;
 const CONTACT_Y = -0.35;
+
+// Garage part groups — matched on mesh/node names (GLB built with --join false)
+const PART_MATCH: Record<BikePartKey, RegExp> = {
+  tires: /TIRE|RIM/i,
+  engine: /MOTOR|EXHAUST|RADIATOR|BASH/i,
+  gearbox: /SPROCKET/i,
+  suspension: /FORK|SHOCK|SWINGARM|SPRING/i,
+};
+// upgrade tier finishes: stock, bronze, silver, gold
+const TIER_TINT = [null, 0xa8703e, 0xc4cbd4, 0xe3b74a] as const;
+
+interface PartSystem {
+  partMats: Record<BikePartKey, THREE.MeshStandardMaterial[]>;
+  setPartLevel: (part: BikePartKey, level: number) => void;
+}
+
+// Give every part-matched mesh its own material clone (so tint/highlight
+// can't leak to shared materials), remember stock colors, expose tiers.
+function buildPartSystem(scene: THREE.Object3D): PartSystem {
+  const partMats: Record<BikePartKey, THREE.MeshStandardMaterial[]> = { tires: [], engine: [], gearbox: [], suspension: [] };
+  const stock = new Map<THREE.MeshStandardMaterial, THREE.Color>();
+  scene.traverse(o => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const name = (m.name || '') + '/' + (m.parent?.name || '');
+    for (const key of Object.keys(PART_MATCH) as BikePartKey[]) {
+      if (!PART_MATCH[key].test(name)) continue;
+      const mats = Array.isArray(m.material) ? m.material : [m.material];
+      const cloned = mats.map(mat => {
+        const c = (mat as THREE.MeshStandardMaterial).clone();
+        stock.set(c, c.color.clone());
+        partMats[key].push(c);
+        return c;
+      });
+      m.material = Array.isArray(m.material) ? cloned : cloned[0];
+      break;
+    }
+  });
+  const setPartLevel = (part: BikePartKey, level: number): void => {
+    const tint = TIER_TINT[Math.max(0, Math.min(3, level))];
+    for (const mat of partMats[part]) {
+      const base = stock.get(mat)!;
+      if (tint === null) {
+        mat.color.copy(base);
+        mat.metalness = Math.min(1, mat.metalness);
+      } else {
+        mat.color.copy(base).lerp(new THREE.Color(tint), 0.55);
+        mat.metalness = Math.min(1, mat.metalness + 0.25);
+        mat.roughness = Math.max(0.15, mat.roughness - 0.2);
+      }
+    }
+  };
+  return { partMats, setPartLevel };
+}
 
 // Tintable plastic materials (colorways repaint these)
 const TINT_MATS = ['FENDERS', 'SHROUDS', 'FORKGUARD', 'HONDA_RED'];
@@ -299,6 +358,7 @@ function buildRig(scene: THREE.Group): GlbBikeRig {
   paintPlates(currentNum);
 
   const spin = makeSpin(root, fWheel, rWheel);
+  const parts = buildPartSystem(scene);
   const mounts = {
     handL: findBone(scene, 'HAND-SNAP.L'),
     handR: findBone(scene, 'HAND-SNAP.R'),
@@ -306,7 +366,7 @@ function buildRig(scene: THREE.Group): GlbBikeRig {
     footR: findBone(scene, 'FOOT-ATCH.R'),
     seat: findBone(scene, 'RIDER-ATTATCH'),
   };
-  return { root, fWheel, rWheel, steer, tintMats, spin, mounts };
+  return { root, fWheel, rWheel, steer, tintMats, spin, mounts, partMats: parts.partMats, setPartLevel: parts.setPartLevel };
 }
 
 // The FBX rig's wheel bones have arbitrary rest orientations (the front one
@@ -384,11 +444,13 @@ export function cloneGlbBike(): GlbBikeRig | null {
   });
   const root = new THREE.Group();
   root.add(sceneClone);
+  const partsC = buildPartSystem(sceneClone);
   const fWheel = findBone(sceneClone, 'FRONT-WHEEL-DEF');
   const rWheel = findBone(sceneClone, 'REAR-WHEEL-ROT');
   const steer = findBone(sceneClone, 'FRONT-STEER');
   return {
     root, fWheel, rWheel, steer, tintMats, spin: makeSpin(root, fWheel, rWheel),
+    partMats: partsC.partMats, setPartLevel: partsC.setPartLevel,
     mounts: {
       handL: findBone(sceneClone, 'HAND-SNAP.L'),
       handR: findBone(sceneClone, 'HAND-SNAP.R'),

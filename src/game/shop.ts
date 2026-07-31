@@ -1,5 +1,5 @@
 import { T, rgba, tC } from './themes';
-import { mxBike, setBikeBodyColor } from './bike';
+import { mxBike, setBikeBodyColor, setPartTier } from './bike';
 import { achState, ACH_DEFS } from './achievements';
 import type { RGB } from './types';
 import * as THREE from 'three';
@@ -83,6 +83,12 @@ export function applyUpgrades(): void {
   mxBike.maxSpeed = 16 + upgrades.engine * 2;      // 16, 18, 20, 22
   mxBike.accel = 12 + upgrades.gearbox * 2.5;      // 12, 14.5, 17, 19.5
   mxBike.turnSpeed = 3.8 + upgrades.tires * 0.4;   // 3.8, 4.2, 4.6, 5.0
+
+  // Upgrade tier finishes on the actual bike parts
+  setPartTier('tires', upgrades.tires);
+  setPartTier('engine', upgrades.engine);
+  setPartTier('gearbox', upgrades.gearbox);
+  setPartTier('suspension', upgrades.suspension);
 
   // Apply bike color to all body plastics (and the rider's jersey)
   const col = BIKE_COLORS[upgrades.bikeColor].color;

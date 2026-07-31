@@ -20,6 +20,14 @@ function currentColor(): THREE.Color {
   return new THREE.Color(c[0] / 255, c[1] / 255, c[2] / 255);
 }
 
+function applyTiers(): void {
+  if (!pGlb) return;
+  pGlb.setPartLevel('tires', upgrades.tires);
+  pGlb.setPartLevel('engine', upgrades.engine);
+  pGlb.setPartLevel('gearbox', upgrades.gearbox);
+  pGlb.setPartLevel('suspension', upgrades.suspension);
+}
+
 export function initBikePreview(el: HTMLElement): void {
   destroyBikePreview();
   const w = el.clientWidth || 400;
@@ -75,6 +83,7 @@ export function initBikePreview(el: HTMLElement): void {
     pBike.group.visible = false;
     pGlb.root.position.y = -0.01;
     pGlb.tintMats.forEach(m => m.color.copy(previewColor ?? currentColor()));
+    applyTiers();
     pScene.add(pGlb.root);
   });
 
@@ -88,10 +97,17 @@ export function initBikePreview(el: HTMLElement): void {
     // highlight pulse
     if (highlightedPart) {
       const glow = (Math.sin(t * 6) + 1) * 0.25 + 0.15;
-      for (const m of pBike.partMap[highlightedPart]) {
-        const mat = m.material as THREE.MeshStandardMaterial;
-        mat.emissive.setRGB(1, 0.45, 0.1);
-        mat.emissiveIntensity = glow;
+      if (pGlb && highlightedPart !== 'body') {
+        for (const mat of pGlb.partMats[highlightedPart]) {
+          mat.emissive.setRGB(0.95, 0.2, 0.22);
+          mat.emissiveIntensity = glow;
+        }
+      } else {
+        for (const m of pBike.partMap[highlightedPart]) {
+          const mat = m.material as THREE.MeshStandardMaterial;
+          mat.emissive.setRGB(1, 0.45, 0.1);
+          mat.emissiveIntensity = glow;
+        }
       }
     }
     pR.render(pScene, pCam);
@@ -111,6 +127,16 @@ export function destroyBikePreview(): void {
 }
 
 function clearEmissive(): void {
+  if (pGlb) {
+    (Object.keys(pGlb.partMats) as (keyof typeof pGlb.partMats)[]).forEach(k => {
+      for (const mat of pGlb!.partMats[k]) {
+        if (mat.emissiveIntensity !== 0) {
+          mat.emissive.setRGB(0, 0, 0);
+          mat.emissiveIntensity = 0;
+        }
+      }
+    });
+  }
   if (!pBike) return;
   (Object.keys(pBike.partMap) as BikePart[]).forEach(k => {
     for (const m of pBike!.partMap[k]) {
@@ -146,4 +172,5 @@ export function refreshPreviewBike(): void {
     pBike.bodyMats.forEach(m => m.color.copy(c));
     pGlb?.tintMats.forEach(m => m.color.copy(c));
   }
+  applyTiers();
 }
