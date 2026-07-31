@@ -85,6 +85,8 @@ const mxTimer: MXTimer = {
 
 function resetMX(): void {
   resetBike();
+  mxKappaS = 0;
+  mxShiftTimer = 0;
   applyUpgrades();
   mxTimer.running = false; mxTimer.lap = 0; mxTimer.lastCP = -1;
   mxTimer.cpsHit.clear(); mxTimer.clean = true; mxTimer.airTime = 0;
@@ -254,7 +256,7 @@ function sectionRelease(): void {
 }
 
 // ── Hints ──
-const HINTS = [mob ? '[ Left thumb steers — GAS and BRAKE on the right — WHEELIE to pop ]' : '[ Click/Arrow Up to race — Cursor or Arrow Keys to steer — Space for wheelie, Arrow Down to brake ]'];
+const HINTS = [mob ? '[ Left stick: steer + lean — lean back on the gas to wheelie — GAS / BRAKE right ]' : '[ Click/Arrow Up to race — Cursor or Arrow Keys to steer — Space for wheelie, Arrow Down to brake ]'];
 const hintEl = document.getElementById('hintLine')!;
 
 function cycleHint(): void {
@@ -277,6 +279,7 @@ let __profN = 0, __profMX = 0, __profHUD = 0, __profRender = 0, __profFrame = 0;
 const GRAV = 16;              // gravity while airborne (m/s²) — snappy MX arcs
 let mxGroundSlope = 0;        // dh/ds at the bike (positive = climbing)
 let mxShiftTimer = 0;         // gear-change clutch drop
+let mxKappaS = 0;             // low-passed track curvature
 
 // Terrain slope (rise per meter of travel) at spline position tP
 function groundSlopeAt(tP: number): number {
@@ -316,14 +319,17 @@ function updateMX(t: number): void {
     steerIn = Math.max(-1, Math.min(1, (cursorLat - mxBike.lat) * 3.2));
   }
 
-  // -- signed track curvature at the bike (left turn > 0) --
+  // -- signed track curvature at the bike (left turn > 0), low-passed:
+  // raw spline curvature has spikes at knots that read as phantom washouts --
   const wrapT = (v: number) => ((v % 1) + 1) % 1;
-  const dTc = 0.004;
+  const dTc = 0.008;
   const tanBack = mxSpline.getTangentAt(wrapT(mxBike.t - dTc)).normalize();
   const tanFwd = mxSpline.getTangentAt(wrapT(mxBike.t + dTc)).normalize();
   const crossY = tanBack.z * tanFwd.x - tanBack.x * tanFwd.z;
   const dotTan = tanBack.x * tanFwd.x + tanBack.z * tanFwd.z;
-  const kappa = Math.atan2(crossY, dotTan) / Math.max(2 * dTc * mxSplineLen, 0.01);
+  const kappaRaw = Math.atan2(crossY, dotTan) / Math.max(2 * dTc * mxSplineLen, 0.01);
+  mxKappaS = lerp(mxKappaS, kappaRaw, 0.12);
+  const kappa = mxKappaS;
   const washDir = Math.sign(kappa) || 0;   // outward = lat+ on left turns
 
   // -- terrain + tires --
@@ -359,7 +365,7 @@ function updateMX(t: number): void {
   if (overload > 0 && !inAir) {
     const wash = Math.min(overload / 14, 1.4);
     mxBike.latVel += washDir * (overload / LAT_SCALE) * 0.55 * dt;
-    mxBike.speed *= 1 - 0.4 * wash * dt;               // scrubbing speed
+    mxBike.speed *= 1 - 0.3 * wash * dt;               // scrubbing speed
     mxBike.slide = Math.min(1, mxBike.slide + wash * dt * 4);
     mxTimer.clean = false;
   } else {
@@ -428,8 +434,15 @@ function updateMX(t: number): void {
   // cornering scrub while leaned over (mild — washouts are the real cost)
   mxBike.speed *= 1 - Math.abs(mxBike.lean) * 0.05 * dt;
 
-  // Wheelie mechanics — front tire UP, back tire DOWN
-  if (I.space && mxTimer.running && !mxBike.airborne && mxBike.speed > 3) {
+  // Wheelie mechanics — front tire UP, back tire DOWN.
+  // Mobile: no button — lean back on the stick while on the gas with revs
+  // (torque lofts the front); sustaining it needs less than starting it.
+  const wheelieIn = mob
+    ? (mxBike.wheelie
+        ? TC.leanY > 0.3 && accelOn
+        : TC.leanY > 0.55 && accelOn && mxBike.rpm > 0.5)
+    : I.space;
+  if (wheelieIn && mxTimer.running && !mxBike.airborne && mxBike.speed > 3) {
     if (!mxBike.wheelie) {
       mxBike.wheelie = true;
       mxBike.wheelieBalance = 0;
@@ -670,7 +683,7 @@ function updateMX(t: number): void {
     pitchTarget = -Math.atan2(mxBike.jumpVel, Math.max(mxBike.speed, 4)) * 0.9;
     if (accelOn) pitchTarget -= 0.22;
     if (brakeOn) pitchTarget += 0.3;
-    if (mob) pitchTarget += TC.airY * 0.38;   // joystick: push = nose down, pull = nose up
+    if (mob) pitchTarget -= TC.leanY * 0.42;   // pull back = nose up, push = nose down
     stiff = 16; damp = 6;
   } else {
     // grounded: chassis spans front/rear wheel contact heights
@@ -679,7 +692,8 @@ function updateMX(t: number): void {
     const hR = getTrackHeight(mxBike.t - wbT);
     pitchTarget = -Math.atan2(hF - hR, 1.2)
       + (accelOn ? -0.05 : 0.015)
-      + (braking ? 0.11 : 0);
+      + (braking ? 0.11 : 0)
+      + (mob ? -TC.leanY * 0.12 : 0);   // body lean shifts the chassis
     stiff = 110; damp = 12;
   }
   mxBike.pitchVel += (pitchTarget - mxBike.pitch) * stiff * dt - mxBike.pitchVel * damp * dt;
@@ -703,7 +717,7 @@ function updateMX(t: number): void {
   // Rider pose follows the riding state
   updateRiderPose({
     crouch: mxBike.airborne ? 1 : Math.min(0.85, (mxBike.speed / mxBike.maxSpeed) * 1.1),
-    back: mxBike.wheelie ? 1 : 0,
+    back: mxBike.wheelie ? 1 : (mob ? Math.max(0, TC.leanY) * 0.45 : 0),
     legOut: grounded && mxBike.speed > 4 && Math.abs(mxBike.lean) > 0.14 ? (mxBike.lean > 0 ? -1 : 1) : 0,
     tuck: mxBike.airborne ? 0.6 : 0,
     lean: mxBike.lean,

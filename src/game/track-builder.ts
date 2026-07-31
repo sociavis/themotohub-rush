@@ -274,7 +274,7 @@ export function buildTrack(): void {
   // Chaikin corner-cutting (×2) rounds every corner before the spline sees
   // it — kills curvature spikes that made steering jerky on tight layouts
   let poly: [number, number][] = trk.pts.map(p => [p[0] - centX, p[1] - centZ]);
-  for (let it = 0; it < 2; it++) {
+  for (let it = 0; it < 3; it++) {
     const out: [number, number][] = [];
     const n = poly.length;
     for (let i = 0; i < n; i++) {

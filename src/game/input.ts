@@ -18,7 +18,8 @@ export let arrowUp = false;
 export let arrowDown = false;
 
 // ── Touch racing controls (mobile): left drag-steer, right GAS/BRAKE ──
-export const TC = { steer: 0, airY: 0, throttle: false, brake: false, active: false };
+// leanY: -1 = full forward lean, +1 = full back lean (thumb pull)
+export const TC = { steer: 0, leanY: 0, throttle: false, brake: false, active: false };
 
 function setupTouchRacingControls(): void {
   const steerZone = document.getElementById('tcSteer');
@@ -28,7 +29,7 @@ function setupTouchRacingControls(): void {
   if (!steerZone || !nub || !gas || !brake) return;
 
   // Floating joystick: rests bottom-left as visible UI, jumps to the thumb
-  // on touch. X steers; Y is in-air pitch control (push = nose down).
+  // on touch. X steers; Y is body lean (pull = back, push = forward).
   let steerId: number | null = null;
   let baseX = 0, baseY = 0;
   const JOY_R = 46;         // px of knob travel for full deflection
@@ -62,7 +63,7 @@ function setupTouchRacingControls(): void {
       const len = Math.hypot(dx, dy);
       if (len > JOY_R) { dx *= JOY_R / len; dy *= JOY_R / len; }
       TC.steer = Math.max(-1, Math.min(1, dx / JOY_R));
-      TC.airY = Math.max(-1, Math.min(1, dy / JOY_R));
+      TC.leanY = Math.max(-1, Math.min(1, dy / JOY_R));
       nub.style.setProperty('--jx', dx + 'px');
       nub.style.setProperty('--jy', dy + 'px');
     }
@@ -72,7 +73,7 @@ function setupTouchRacingControls(): void {
       if (t.identifier !== steerId) continue;
       steerId = null;
       TC.steer = 0;
-      TC.airY = 0;
+      TC.leanY = 0;
       TC.active = false;
       restJoy();
     }
