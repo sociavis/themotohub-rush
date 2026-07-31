@@ -28,13 +28,17 @@ export interface GlbBikeRig {
 const WHEELBASE = 1.2;
 const CONTACT_Y = -0.35;
 
-// Garage part groups — matched on mesh/node names (GLB built with --join false)
-const PART_MATCH: Record<BikePartKey, RegExp> = {
-  tires: /TIRE|RIM/i,
-  engine: /MOTOR|EXHAUST|RADIATOR|BASH/i,
-  gearbox: /SPROCKET/i,
-  suspension: /FORK|SHOCK|SWINGARM|SPRING/i,
-};
+// Garage part groups — matched on mesh/node names (GLB built with --join
+// false). ORDER MATTERS: first match wins (rear sprocket lives inside the
+// REAR RIM mesh; fork hub carries a RIMS primitive).
+const PART_MATCH: [BikePartKey, RegExp][] = [
+  ['gearbox', /FRONT SPROCKET|REAR RIM_FORK/i],                 // gearing: both sprockets
+  ['suspension', /FORK LOWERS|FORK UPPERS|Circle\.002|Circle\.014|Cylinder\.002/i], // forks + rear shock/spring
+  ['engine', /MOTOR|EXHAUST|RADIATOR|BASH/i],
+  ['tires', /TIRE|RIM/i],
+];
+// colorway-owned plastics never take part tints/highlights
+const PART_EXCLUDE_MAT = /FENDERS|SHROUDS|FORKGUARD|HONDA|SEAT|NUMBERPLATES/i;
 // upgrade tier finishes: stock, bronze, silver, gold
 const TIER_TINT = [null, 0xa8703e, 0xc4cbd4, 0xe3b74a] as const;
 
@@ -52,11 +56,13 @@ function buildPartSystem(scene: THREE.Object3D): PartSystem {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const name = (m.name || '') + '/' + (m.parent?.name || '');
-    for (const key of Object.keys(PART_MATCH) as BikePartKey[]) {
-      if (!PART_MATCH[key].test(name)) continue;
+    for (const [key, re] of PART_MATCH) {
+      if (!re.test(name)) continue;
       const mats = Array.isArray(m.material) ? m.material : [m.material];
       const cloned = mats.map(mat => {
-        const c = (mat as THREE.MeshStandardMaterial).clone();
+        const sm = mat as THREE.MeshStandardMaterial;
+        if (PART_EXCLUDE_MAT.test(sm.name || '')) return sm;   // colorway plastic stays shared
+        const c = sm.clone();
         stock.set(c, c.color.clone());
         partMats[key].push(c);
         return c;
@@ -223,8 +229,8 @@ function paintPlates(num: number): void {
     const tr = Math.round(plateTint.r * 255), tg = Math.round(plateTint.g * 255), tb = Math.round(plateTint.b * 255);
     for (let i = 0; i < px.length; i += 4) {
       if (px[i] > 140 && px[i + 1] < 90 && px[i + 2] < 90) {
-        // preserve shading via red-channel luminance
-        const l = px[i] / 230;
+        // near-flat tint so panels match the untextured plastics exactly
+        const l = Math.min(1, 0.92 + (px[i] / 255) * 0.1);
         px[i] = Math.min(255, tr * l); px[i + 1] = Math.min(255, tg * l); px[i + 2] = Math.min(255, tb * l);
       }
     }

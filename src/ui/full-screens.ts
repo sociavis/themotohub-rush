@@ -62,7 +62,7 @@ function renderFullShop(el: HTMLElement): void {
   const categories = [
     { key: 'tires' as const, name: 'TIRES', desc: ['Stock knobbies', 'Intermediate tread', 'Soft compound', 'Factory grip'], stat: 'Better grip & traction', icon: '◎' },
     { key: 'engine' as const, name: 'ENGINE', desc: ['Stock 250f', '250f ported', '350f bored', '450f race'], stat: 'More power & top speed', icon: '⚙' },
-    { key: 'gearbox' as const, name: 'GEARBOX', desc: ['Stock gears', 'Close ratio', 'Works gears', 'Factory shift'], stat: 'Faster holeshots', icon: '⟐' },
+    { key: 'gearbox' as const, name: 'GEARING', desc: ['Stock gears', 'Close ratio', 'Works gears', 'Factory shift'], stat: 'Faster holeshots', icon: '⟐' },
     { key: 'suspension' as const, name: 'SUSPENSION', desc: ['Stock forks', 'Revalved forks', 'Race-tuned', 'Factory kit'], stat: 'Better on jumps & whoops', icon: '↕' },
   ];
 

@@ -231,7 +231,7 @@ export function renderShop(): void {
   const categories = [
     { key: 'tires' as const, name: 'Tires', desc: ['Stock knobbies', 'Intermediate tread', 'Soft compound', 'Factory grip'] },
     { key: 'engine' as const, name: 'Engine', desc: ['Stock 250f', '250f ported', '350f bored', '450f race'] },
-    { key: 'gearbox' as const, name: 'Gearbox', desc: ['Stock gears', 'Close ratio', 'Works gears', 'Factory shift'] },
+    { key: 'gearbox' as const, name: 'Gearing', desc: ['Stock gears', 'Close ratio', 'Works gears', 'Factory shift'] },
     { key: 'suspension' as const, name: 'Suspension', desc: ['Stock forks', 'Revalved forks', 'Race-tuned', 'Factory kit'] },
   ];
 

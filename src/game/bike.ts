@@ -436,10 +436,13 @@ export const seat = bike.seatMesh;
 
 export function setBikeBodyColor(c: THREE.Color): void {
   bike.bodyMats.forEach(m => m.color.copy(c));
-  pendingColor = c.clone();
-  if (glbRig) glbRig.tintMats.forEach(m => m.color.copy(c));
-  riderRig?.setJerseyColor(c);
-  setPlateTint(c);
+  // untextured GLB plastics read washed out under ACES — boost sat a touch
+  const cv = c.clone();
+  cv.offsetHSL(0, 0.09, 0.015);
+  pendingColor = cv.clone();
+  if (glbRig) glbRig.tintMats.forEach(m => m.color.copy(cv));
+  riderRig?.setJerseyColor(cv);
+  setPlateTint(cv);
 }
 
 // f/r: 0..1 suspension compression
