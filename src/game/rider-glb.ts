@@ -32,7 +32,7 @@ export interface RiderRig {
 }
 
 // Rider height in game units (bike wheelbase 1.2 ≈ 1.48 m → 1.6 m rider ≈ 1.3)
-const RIDER_HEIGHT = 1.3;
+const RIDER_HEIGHT = 1.06;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
