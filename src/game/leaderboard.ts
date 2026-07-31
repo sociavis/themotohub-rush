@@ -4,6 +4,8 @@ export interface LeaderboardEntry {
   rank: number;
   username: string;
   displayName: string;
+  avatarUrl?: string;
+  racerNumber?: number;
   lapTime: number;
   wasClean: boolean;
   userId: number;
@@ -13,6 +15,7 @@ export interface WorldRecord {
   lapTime: number;
   username: string;
   displayName: string;
+  avatarUrl?: string;
 }
 
 export interface TrackLeaderboard {

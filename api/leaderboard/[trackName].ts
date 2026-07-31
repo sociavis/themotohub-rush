@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const trackName = decodeURIComponent(req.query.trackName as string);
 
   const { rows } = await sql`
-    SELECT lr.lap_time, lr.recorded_at, lr.was_clean, u.username, u.racer_number, u.country, u.id as user_id
+    SELECT lr.lap_time, lr.recorded_at, lr.was_clean, u.username, u.racer_number, u.country, u.id as user_id, u.display_name, u.avatar_url
     FROM lap_records lr
     JOIN users u ON lr.user_id = u.id
     WHERE lr.track_name = ${trackName}
@@ -31,11 +31,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     entries: entries.map((e, i) => ({
       rank: i + 1,
       username: e.username,
-      displayName: e.username,
+      displayName: e.display_name || e.username,
+      avatarUrl: e.avatar_url || '',
+      racerNumber: e.racer_number || 0,
       lapTime: e.lap_time,
       wasClean: !!e.was_clean,
       userId: e.user_id,
     })),
-    worldRecord: wr ? { lapTime: wr.lap_time, username: wr.username, displayName: wr.username } : null,
+    worldRecord: wr ? {
+      lapTime: wr.lap_time,
+      username: wr.username,
+      displayName: wr.display_name || wr.username,
+      avatarUrl: wr.avatar_url || '',
+    } : null,
   });
 }

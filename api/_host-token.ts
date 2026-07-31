@@ -4,9 +4,10 @@ import crypto from 'crypto';
 // `sub` is the host's stable user id, e.g. "tmh:<supabase-uuid>".
 export interface HostClaims {
   sub: string;
-  name?: string;
+  name?: string;     // display name, mirrored to leaderboards
   num?: number;
   country?: string;
+  avatar?: string;   // profile picture URL, mirrored to leaderboards
   iat?: number;
   exp: number;
 }

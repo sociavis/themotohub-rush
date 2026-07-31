@@ -4,6 +4,8 @@ export interface UserProfile {
   racerNumber: number;
   country: string;
   totalRaces?: number;
+  displayName?: string;
+  avatarUrl?: string;
 }
 
 let currentUser: UserProfile | null = null;

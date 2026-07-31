@@ -10,7 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!trackName) return res.status(400).json({ error: 'Missing track name' });
 
   const { rows } = await sql`
-    SELECT lr.lap_time, u.username
+    SELECT lr.lap_time, u.username, u.display_name, u.avatar_url
     FROM lap_records lr JOIN users u ON lr.user_id = u.id
     WHERE lr.track_name = ${trackName}
     ORDER BY lr.lap_time ASC LIMIT 1
@@ -18,6 +18,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const wr = rows[0] || null;
   return res.json({
-    worldRecord: wr ? { lapTime: wr.lap_time, username: wr.username, displayName: wr.username } : null,
+    worldRecord: wr ? { lapTime: wr.lap_time, username: wr.username, displayName: wr.display_name || wr.username, avatarUrl: wr.avatar_url || '' } : null,
   });
 }

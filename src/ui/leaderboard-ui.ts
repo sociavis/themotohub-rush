@@ -55,7 +55,8 @@ function renderLeaderboard(): void {
     html += `<div class="lb-wr-banner">`;
     html += `<div class="lb-wr-label">WORLD RECORD</div>`;
     html += `<div class="lb-wr-time">${fmtMXTime(lb.worldRecord.lapTime)}</div>`;
-    html += `<div class="lb-wr-holder">${lb.worldRecord.displayName || lb.worldRecord.username}</div>`;
+    const wrAv = lb.worldRecord.avatarUrl ? `<img class="lb-avatar" src="${lb.worldRecord.avatarUrl}" onerror="this.style.display='none'">` : '';
+    html += `<div class="lb-wr-holder">${wrAv}${lb.worldRecord.displayName || lb.worldRecord.username}</div>`;
     html += `</div>`;
   }
 
@@ -65,7 +66,8 @@ function renderLeaderboard(): void {
       const rankClass = entry.rank === 1 ? ' gold' : entry.rank === 2 ? ' silver' : entry.rank === 3 ? ' bronze' : '';
       html += `<div class="lb-entry">`;
       html += `<div class="lb-rank${rankClass}">#${entry.rank}</div>`;
-      html += `<div class="lb-name">${entry.displayName || entry.username}</div>`;
+      const av = entry.avatarUrl ? `<img class="lb-avatar" src="${entry.avatarUrl}" onerror="this.style.display='none'">` : '';
+      html += `<div class="lb-name">${av}${entry.displayName || entry.username}${entry.racerNumber ? ` <span class="lb-num">#${entry.racerNumber}</span>` : ''}</div>`;
       html += `<div class="lb-time" style="color:${rgba(t.primary, 1)}">${fmtMXTime(entry.lapTime)}</div>`;
       html += `</div>`;
     }

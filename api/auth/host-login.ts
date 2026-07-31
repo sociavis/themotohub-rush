@@ -46,16 +46,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const rn = Number.isInteger(claims.num) && claims.num! >= 1 && claims.num! <= 999 ? claims.num! : 0;
     const { rows: created } = await sql`
-      INSERT INTO users (username, password_hash, email, racer_number, country, created_at, last_login, external_id)
-      VALUES (${username}, ${HOST_PW_SENTINEL}, ${''}, ${rn}, ${claims.country || ''}, ${now}, ${now}, ${claims.sub})
+      INSERT INTO users (username, password_hash, email, racer_number, country, created_at, last_login, external_id, display_name, avatar_url)
+      VALUES (${username}, ${HOST_PW_SENTINEL}, ${''}, ${rn}, ${claims.country || ''}, ${now}, ${now}, ${claims.sub}, ${claims.name || ''}, ${claims.avatar || ''})
       RETURNING *
     `;
     user = created[0];
   } else {
     // Keep racer number / country in sync with the host profile; username stays stable.
     const rn = Number.isInteger(claims.num) && claims.num! >= 1 && claims.num! <= 999 ? claims.num! : user.racer_number;
-    await sql`UPDATE users SET last_login = ${now}, racer_number = ${rn}, country = ${claims.country || user.country} WHERE id = ${user.id}`;
+    await sql`
+      UPDATE users SET last_login = ${now}, racer_number = ${rn},
+        country = ${claims.country || user.country},
+        display_name = ${claims.name || user.display_name || ''},
+        avatar_url = ${claims.avatar || user.avatar_url || ''}
+      WHERE id = ${user.id}`;
     user.racer_number = rn;
+    user.display_name = claims.name || user.display_name;
+    user.avatar_url = claims.avatar || user.avatar_url;
   }
 
   const token = crypto.randomUUID();
@@ -75,7 +82,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   return res.json({
     token,
-    user: { id: user.id, username: user.username, racerNumber: user.racer_number, country: user.country, totalRaces: user.total_races },
+    user: {
+      id: user.id, username: user.username, racerNumber: user.racer_number,
+      country: user.country, totalRaces: user.total_races,
+      displayName: user.display_name || user.username, avatarUrl: user.avatar_url || '',
+    },
     bestTimes,
     achievementsData: user.achievements_data || '',
     upgradesData: user.upgrades_data || '',

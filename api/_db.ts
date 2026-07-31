@@ -45,6 +45,9 @@ export async function initDB(): Promise<void> {
   try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS upgrades_data TEXT DEFAULT ''`; } catch {}
   // Host-app SSO link (e.g. TheMotoHub): stable external identity, no password
   try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS external_id TEXT`; } catch {}
+  // Host profile mirror: shown on leaderboards (display name + avatar)
+  try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT ''`; } catch {}
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_external_id ON users(external_id) WHERE external_id IS NOT NULL`;
 
   // Create indexes if they don't exist
